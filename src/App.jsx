@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 // ═══════════════════════════════════════════════════════════
 
 const BRAND = "RGPD Express";
-const EMAIL = "contact@rgpd-express.fr";
+const EMAIL = "contact@rgpd.express";
 const PHONE = "07 69 46 93 76";
 const FH = "'Source Serif 4', Georgia, serif";
 const FB = "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif";
@@ -163,14 +163,14 @@ export default function App() {
   // ═══ MENTIONS LÉGALES ═══
   if (view === "mentions") return (
     <LegalPage title="Mentions légales">
-      <LP>Conformément aux dispositions des articles 6-III et 19 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN), les présentes mentions légales sont portées à la connaissance des utilisateurs du site www.rgpd-express.fr.</LP>
+      <LP>Conformément aux dispositions des articles 6-III et 19 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN), les présentes mentions légales sont portées à la connaissance des utilisateurs du site www.rgpd.express.</LP>
       <LH>Éditeur du site</LH>
-      <LP>Le site www.rgpd-express.fr est édité par :</LP>
-      <LP><strong>RGPD Express</strong><br/>Louca Foughali<br/>Micro-entreprise<br/>SIRET : [à compléter lors de l'immatriculation]<br/>Adresse : [à compléter]<br/>Téléphone : 07 69 46 93 76<br/>Adresse électronique : contact@rgpd-express.fr<br/>Directeur de la publication : Louca Foughali</LP>
+      <LP>Le site www.rgpd.express est édité par :</LP>
+      <LP><strong>RGPD Express</strong><br/>Louca Foughali<br/>Micro-entreprise<br/>SIRET : [à compléter lors de l'immatriculation]<br/>Adresse : [à compléter]<br/>Téléphone : 07 69 46 93 76<br/>Adresse électronique : contact@rgpd.express<br/>Directeur de la publication : Louca Foughali</LP>
       <LH>Hébergeur</LH>
       <LP>[Nom de l'hébergeur — à compléter lors du choix de l'hébergement]<br/>[Adresse de l'hébergeur]<br/>[Téléphone de l'hébergeur]</LP>
       <LH>Propriété intellectuelle</LH>
-      <LP>L'ensemble des contenus présents sur le site www.rgpd-express.fr (textes, images, graphismes, logo, icônes, logiciels, base de données) est protégé par les dispositions du Code de la propriété intellectuelle et appartient à RGPD Express ou fait l'objet d'une autorisation d'utilisation.</LP>
+      <LP>L'ensemble des contenus présents sur le site www.rgpd.express (textes, images, graphismes, logo, icônes, logiciels, base de données) est protégé par les dispositions du Code de la propriété intellectuelle et appartient à RGPD Express ou fait l'objet d'une autorisation d'utilisation.</LP>
       <LP>Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite sans autorisation écrite préalable de RGPD Express.</LP>
       <LH>Responsabilité</LH>
       <LP>RGPD Express s'efforce de fournir sur le site des informations aussi précises que possible. Toutefois, RGPD Express ne pourra être tenu responsable des omissions, des inexactitudes et des carences dans la mise à jour, qu'elles soient de son fait ou du fait des tiers partenaires qui lui fournissent ces informations.</LP>
@@ -186,10 +186,10 @@ export default function App() {
   // ═══ POLITIQUE DE CONFIDENTIALITÉ ═══
   if (view === "confidentialite") return (
     <LegalPage title="Politique de confidentialité">
-      <LP>La présente politique de confidentialité définit et informe les utilisateurs du site www.rgpd-express.fr de la manière dont RGPD Express collecte, utilise et protège les données à caractère personnel, conformément au Règlement (UE) 2016/679 du 27 avril 2016 (RGPD) et à la loi n° 78-17 du 6 janvier 1978 modifiée relative à l'informatique, aux fichiers et aux libertés.</LP>
+      <LP>La présente politique de confidentialité définit et informe les utilisateurs du site www.rgpd.express de la manière dont RGPD Express collecte, utilise et protège les données à caractère personnel, conformément au Règlement (UE) 2016/679 du 27 avril 2016 (RGPD) et à la loi n° 78-17 du 6 janvier 1978 modifiée relative à l'informatique, aux fichiers et aux libertés.</LP>
 
       <LH>1. Responsable du traitement</LH>
-      <LP>Le responsable du traitement des données collectées sur le site est :<br/><strong>RGPD Express — Louca Foughali</strong><br/>Adresse électronique : contact@rgpd-express.fr<br/>Téléphone : 07 69 46 93 76</LP>
+      <LP>Le responsable du traitement des données collectées sur le site est :<br/><strong>RGPD Express — Louca Foughali</strong><br/>Adresse électronique : contact@rgpd.express<br/>Téléphone : 07 69 46 93 76</LP>
 
       <LH>2. Données collectées</LH>
       <LP>Dans le cadre de son activité, RGPD Express est susceptible de collecter les catégories de données suivantes :</LP>
@@ -212,11 +212,11 @@ export default function App() {
       <LH>6. Droits des personnes</LH>
       <LP>Conformément au RGPD et à la loi Informatique et Libertés, vous disposez des droits suivants sur vos données personnelles :</LP>
       <LP>• Droit d'accès : obtenir la confirmation que des données vous concernant sont traitées et en obtenir une copie.<br/>• Droit de rectification : demander la correction de données inexactes ou incomplètes.<br/>• Droit à l'effacement : demander la suppression de vos données dans les conditions prévues par la réglementation.<br/>• Droit à la limitation : demander la restriction du traitement de vos données.<br/>• Droit à la portabilité : récupérer vos données dans un format structuré et couramment utilisé.<br/>• Droit d'opposition : vous opposer au traitement de vos données pour des motifs légitimes.</LP>
-      <LP>Pour exercer l'un de ces droits, adressez votre demande par courrier électronique à <strong>contact@rgpd-express.fr</strong>. Une réponse vous sera apportée dans un délai maximal de 30 jours.</LP>
+      <LP>Pour exercer l'un de ces droits, adressez votre demande par courrier électronique à <strong>contact@rgpd.express</strong>. Une réponse vous sera apportée dans un délai maximal de 30 jours.</LP>
       <LP>En cas de difficulté, vous disposez du droit d'introduire une réclamation auprès de la CNIL : www.cnil.fr.</LP>
 
       <LH>7. Cookies</LH>
-      <LP>Le site www.rgpd-express.fr utilise exclusivement des cookies strictement nécessaires à son fonctionnement. Aucun cookie publicitaire ou de traçage n'est déposé sans votre consentement préalable.</LP>
+      <LP>Le site www.rgpd.express utilise exclusivement des cookies strictement nécessaires à son fonctionnement. Aucun cookie publicitaire ou de traçage n'est déposé sans votre consentement préalable.</LP>
       <LP>Si un outil de mesure d'audience est mis en place (ex. : Google Analytics), une bannière de consentement vous permettra d'accepter ou de refuser le dépôt de cookies avant toute activation des traceurs.</LP>
 
       <LH>8. Sécurité</LH>
@@ -237,7 +237,7 @@ export default function App() {
       <LP>Les présentes conditions générales de vente (ci-après « CGV ») régissent l'ensemble des relations commerciales entre RGPD Express et ses clients. Toute souscription à une offre proposée par RGPD Express implique l'acceptation sans réserve des présentes CGV.</LP>
 
       <LH>1. Identification du prestataire</LH>
-      <LP><strong>RGPD Express</strong><br/>Louca Foughali — Micro-entreprise<br/>SIRET : [à compléter]<br/>Adresse électronique : contact@rgpd-express.fr<br/>Téléphone : 07 69 46 93 76</LP>
+      <LP><strong>RGPD Express</strong><br/>Louca Foughali — Micro-entreprise<br/>SIRET : [à compléter]<br/>Adresse électronique : contact@rgpd.express<br/>Téléphone : 07 69 46 93 76</LP>
 
       <LH>2. Description des services</LH>
       <LP>RGPD Express propose un service d'accompagnement à la mise en conformité au Règlement Général sur la Protection des Données (RGPD). Ce service comprend, selon l'offre souscrite :</LP>
@@ -253,7 +253,7 @@ export default function App() {
       <LP>La souscription s'effectue par échange électronique (e-mail) ou par tout autre moyen convenu entre les parties. Le contrat prend effet à la date de confirmation de la souscription par RGPD Express et de la réception du premier paiement.</LP>
 
       <LH>5. Durée et renouvellement</LH>
-      <LP>L'abonnement est conclu pour une durée d'un mois, renouvelable tacitement par périodes successives d'un mois. Le client peut résilier son abonnement à tout moment, sans justification et sans pénalité, en adressant sa demande par courrier électronique à contact@rgpd-express.fr. La résiliation prend effet à la fin de la période mensuelle en cours.</LP>
+      <LP>L'abonnement est conclu pour une durée d'un mois, renouvelable tacitement par périodes successives d'un mois. Le client peut résilier son abonnement à tout moment, sans justification et sans pénalité, en adressant sa demande par courrier électronique à contact@rgpd.express. La résiliation prend effet à la fin de la période mensuelle en cours.</LP>
 
       <LH>6. Modalités de paiement</LH>
       <LP>Le paiement s'effectue par prélèvement automatique mensuel, par virement bancaire ou par tout autre moyen convenu entre les parties. Le paiement est dû au début de chaque période mensuelle. En cas de retard de paiement, des pénalités de retard seront appliquées conformément aux dispositions de l'article L.441-10 du Code de commerce.</LP>
@@ -271,7 +271,7 @@ export default function App() {
       <LP>RGPD Express met tout en œuvre pour fournir des documents de qualité et conformes à la réglementation en vigueur. Toutefois, RGPD Express ne saurait garantir l'absence de tout risque de sanction de la part de la CNIL, celle-ci dépendant de facteurs propres à chaque situation. La responsabilité de RGPD Express est limitée au montant des sommes effectivement perçues au titre de l'abonnement au cours des 12 derniers mois.</LP>
 
       <LH>11. Protection des données</LH>
-      <LP>Les données personnelles communiquées par le client dans le cadre de la prestation sont traitées conformément à la politique de confidentialité du site, accessible à l'adresse www.rgpd-express.fr/confidentialite.</LP>
+      <LP>Les données personnelles communiquées par le client dans le cadre de la prestation sont traitées conformément à la politique de confidentialité du site, accessible à l'adresse www.rgpd.express/confidentialite.</LP>
 
       <LH>12. Médiation</LH>
       <LP>Conformément aux articles L.616-1 et R.616-1 du Code de la consommation, en cas de litige, le client peut recourir gratuitement au service de médiation proposé par RGPD Express. Le médiateur désigné est [à compléter]. Les coordonnées et les modalités de saisine du médiateur sont disponibles sur demande.</LP>
