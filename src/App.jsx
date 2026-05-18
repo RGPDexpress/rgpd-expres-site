@@ -82,26 +82,67 @@ const TESTIMONIALS = [
   { name: "Julien Barbier", role: "Artisan plombier", text: "Je gère mes clients avec un simple fichier Excel et je pensais être hors du radar de la CNIL. L'audit m'a montré que j'étais exposé sur six points. Pour 29 € par mois, je suis protégé et mes documents restent conformes même si les lois changent. C'est une assurance.", rating: 5, date: "Mars 2026" },
 ];
 
-// ─── QUESTIONS QUESTIONNAIRE CLIENT ───
+// ─── QUESTIONS QUESTIONNAIRE CLIENT ───────────────────────────────────────
+// 29 questions en 6 blocs — détermine l'offre, les documents et leur contenu
+// Types : email | text | textarea | select | checkbox | radio
+
 const CLIENT_QUESTIONS = [
-  { id:"email", icon:"📧", cat:"Votre contact", q:"Quelle est votre adresse e-mail professionnelle ?", sub:"Votre dossier complet sera envoyé à cette adresse dès qu'il sera généré.", type:"email", placeholder:"contact@votre-entreprise.fr" },
-  { id:"raison_sociale", icon:"🏢", cat:"Votre entreprise", q:"Quelle est la raison sociale de votre entreprise ?", sub:"Nom officiel tel qu'il figure sur votre Kbis ou extrait SIRENE.", type:"text", placeholder:"Ex : Dupont Consulting" },
-  { id:"siret", icon:"🔢", cat:"Votre entreprise", q:"Quel est votre numéro SIRET ?", sub:"14 chiffres — disponible sur votre avis de situation SIRENE ou votre Kbis.", type:"text", placeholder:"Ex : 123 456 789 00012" },
-  { id:"secteur", icon:"🏭", cat:"Votre entreprise", q:"Dans quel secteur exercez-vous votre activité ?", sub:"Sélectionnez le secteur le plus proche de votre activité principale.", type:"select", options:["E-commerce / Vente en ligne","Immobilier","Restauration / Alimentation","Artisanat","Profession libérale (médecin, avocat, comptable…)","Commerce de proximité","Coaching / Conseil","Recrutement / RH","Formation","Santé / Bien-être","Autre"] },
-  { id:"effectif", icon:"👥", cat:"Votre entreprise", q:"Combien de personnes travaillent dans votre structure ?", sub:"Incluez les associés, salariés et prestataires réguliers.", type:"select", options:["Juste moi (auto-entrepreneur ou indépendant)","2 à 5 personnes","6 à 10 personnes","11 à 20 personnes","21 à 50 personnes"] },
-  { id:"site_web", icon:"🌐", cat:"Votre entreprise", q:"Quelle est l'adresse de votre site web ?", sub:"Si vous n'avez pas encore de site, indiquez « Pas de site web ».", type:"text", placeholder:"Ex : https://www.mon-entreprise.fr" },
-  { id:"types_donnees", icon:"👤", cat:"Données collectées", q:"Quels types de données personnelles collectez-vous ?", sub:"Noms, emails, téléphones, données bancaires, données de santé… Soyez aussi précis que possible.", type:"textarea", placeholder:"Ex : Noms, prénoms, adresses e-mail, numéros de téléphone, adresses postales, données de paiement (via Stripe)…" },
-  { id:"moyens_collecte", icon:"📥", cat:"Données collectées", q:"Par quels moyens collectez-vous ces données ?", sub:"Formulaire de contact, prise de commande, téléphone, CRM, newsletter…", type:"textarea", placeholder:"Ex : Formulaire de contact sur mon site, prise de commande en boutique, inscription newsletter, fichier Excel clients…" },
-  { id:"finalites", icon:"🎯", cat:"Données collectées", q:"Dans quel but utilisez-vous ces données ?", sub:"Gestion clients, envoi de devis, facturation, newsletter, livraison…", type:"textarea", placeholder:"Ex : Gestion relation client, envoi de devis et factures, newsletter promotionnelle, livraison des commandes…" },
-  { id:"durees_conservation", icon:"🗓️", cat:"Données collectées", q:"Combien de temps conservez-vous les données de vos clients ?", sub:"Si vous ne savez pas, indiquez-le — nous définirons les durées légales adaptées.", type:"select", options:["Moins de 1 an","1 à 3 ans","3 à 5 ans","Plus de 5 ans","Je ne sais pas / Aucune politique définie"] },
-  { id:"outils", icon:"🔧", cat:"Outils utilisés", q:"Quels outils numériques utilisez-vous au quotidien ?", sub:"CRM, paiement, emailing, hébergement, analytics, réseaux sociaux… Listez tout.", type:"textarea", placeholder:"Ex : Stripe (paiement), Mailchimp (newsletter), Google Analytics, WordPress, Shopify, Notion…" },
-  { id:"outils_hors_ue", icon:"🌍", cat:"Outils utilisés", q:"Parmi ces outils, lesquels sont hébergés hors de l'Union européenne ?", sub:"Google, Meta, Amazon AWS, Stripe, Mailchimp sont des exemples d'outils américains. Si vous ne savez pas, indiquez-le.", type:"text", placeholder:"Ex : Google Analytics, Stripe, Mailchimp — ou « Je ne sais pas »" },
-  { id:"securite", icon:"🛡️", cat:"Sécurité", q:"Quelles mesures de sécurité avez-vous mises en place ?", sub:"Mots de passe, double authentification, chiffrement, sauvegardes… Décrivez ce que vous faites.", type:"textarea", placeholder:"Ex : Mots de passe forts, double authentification Gmail, site en HTTPS, sauvegardes hebdomadaires…" },
-  { id:"demandes_droits", icon:"✉️", cat:"Conformité existante", q:"Avez-vous déjà reçu des demandes d'accès ou de suppression de données ?", sub:"Un client souhaitant connaître ou supprimer ses données personnelles.", type:"select", options:["Non, jamais","Oui, et j'ai su y répondre","Oui, mais je ne savais pas quoi répondre","Je ne suis pas sûr(e)"] },
-  { id:"sensibilisation", icon:"📚", cat:"Conformité existante", q:"Vos collaborateurs sont-ils sensibilisés au RGPD ?", sub:"Formation, briefing, procédure interne… Si vous êtes seul(e), répondez pour vous-même.", type:"select", options:["Oui, ils ont été formés","Partiellement, quelques notions","Non, pas encore","Je travaille seul(e)"] },
-  { id:"conformite_existante", icon:"✅", cat:"Conformité existante", q:"Quels éléments de conformité avez-vous déjà mis en place ?", sub:"Politique de confidentialité, bannière cookies, registre… Indiquez tout ce qui est déjà en place.", type:"text", placeholder:"Ex : Politique de confidentialité basique, bannière cookies — ou « Rien pour l'instant »" },
-  { id:"referent", icon:"🧑‍💼", cat:"Conformité existante", q:"Y a-t-il une personne référente sur le sujet des données ?", sub:"Nom et fonction de la personne chargée des questions RGPD. Peut être vous-même.", type:"text", placeholder:"Ex : Moi-même (gérant) — ou « Personne de désigné »" },
+  // ══ BLOC 1 : PROFIL ENTREPRISE (5 q.) ═══════════════════════════════════
+  { id:"email", bloc:1, blocTitle:"Votre profil", icon:"📧", q:"Quelle est votre adresse e-mail professionnelle ?", sub:"Votre dossier complet sera envoyé à cette adresse dès qu'il sera généré.", type:"email", placeholder:"contact@votre-entreprise.fr" },
+  { id:"raison_sociale", bloc:1, blocTitle:"Votre profil", icon:"🏢", q:"Quelle est la raison sociale de votre entreprise ?", sub:"Nom officiel tel qu'il figure sur votre Kbis ou extrait SIRENE.", type:"text", placeholder:"Ex : Dupont Consulting" },
+  { id:"siret", bloc:1, blocTitle:"Votre profil", icon:"🔢", q:"Quel est votre numéro SIRET ?", sub:"14 chiffres — disponible sur votre avis de situation SIRENE ou votre Kbis.", type:"text", placeholder:"Ex : 123 456 789 00012" },
+  { id:"forme_juridique", bloc:1, blocTitle:"Votre profil", icon:"⚖️", q:"Quelle est votre forme juridique ?", sub:"Elle détermine vos obligations légales et le contenu de vos mentions légales.", type:"select", options:["Auto-entrepreneur / Entrepreneur individuel (EI)","EURL (associé unique)","SARL","SAS / SASU","SA","SCI","Association loi 1901","Profession libérale réglementée (médecin, avocat, notaire…)","Autre"] },
+  { id:"secteur", bloc:1, blocTitle:"Votre profil", icon:"🏭", q:"Dans quel secteur exercez-vous votre activité principale ?", sub:"Sélectionnez le secteur le plus proche. Il détermine les obligations RGPD spécifiques à votre métier.", type:"select", options:["E-commerce / Vente en ligne","Immobilier (agent, administrateur de biens, syndic)","Santé / Paramédical (médecin, infirmier, kiné, ostéo, psy…)","Bien-être / Nutrition / Coaching santé","Sport & Fitness","Coaching professionnel / Personnel","Conseil & Consulting","Formation professionnelle (OF, auto-école…)","Recrutement / Ressources humaines","Comptabilité / Finances / Assurance","Restauration / Alimentation","Artisanat / BTP / Services à domicile","Commerce de proximité / Retail","Marketing / Communication / Agence web","Photographie / Vidéo / Art","Juridique (avocat, huissier, notaire…)","Éducation / Tutorat","Association / ONG / Collectif","Autre"] },
+  { id:"effectif", bloc:1, blocTitle:"Votre profil", icon:"👥", q:"Combien de personnes travaillent dans votre structure ?", sub:"Incluez les associés, salariés, alternants et prestataires réguliers.", type:"select", options:["Je suis seul(e) — auto-entrepreneur ou indépendant","2 à 5 personnes","6 à 10 personnes","11 à 20 personnes","21 à 50 personnes","Plus de 50 personnes"] },
+
+  // ══ BLOC 2 : DONNÉES PERSONNELLES TRAITÉES (5 q.) ════════════════════════
+  { id:"types_donnees", bloc:2, blocTitle:"Données traitées", icon:"👤", q:"Quels types de données personnelles collectez-vous ?", sub:"Cochez tout ce qui correspond à votre activité.", type:"checkbox", options:["Nom et prénom","Adresse e-mail","Numéro de téléphone","Adresse postale","Date de naissance","Données bancaires / de paiement","Numéro de sécurité sociale ou identifiant fiscal","Photos ou vidéos de personnes","Données de navigation (cookies, IP, comportement en ligne)","Données de localisation","Informations professionnelles (poste, entreprise, salaire)","Dossiers de candidature (CV, lettre de motivation)","Données RH (contrats, bulletins de paie, évaluations)"] },
+  { id:"donnees_sensibles", bloc:2, blocTitle:"Données traitées", icon:"🔴", q:"Traitez-vous des données sensibles au sens du RGPD ?", sub:"Ces catégories font l'objet d'une protection renforcée et d'obligations supplémentaires.", type:"checkbox", options:["Données de santé (antécédents, diagnostics, ordonnances, bilans…)","Données biométriques (empreintes, reconnaissance faciale)","Données génétiques","Données concernant des mineurs (moins de 18 ans)","Opinions politiques ou syndicales","Convictions religieuses ou philosophiques","Origine raciale ou ethnique","Orientation sexuelle","Données relatives à des condamnations pénales","Aucune donnée de ces catégories"] },
+  { id:"volume_donnees", bloc:2, blocTitle:"Données traitées", icon:"📊", q:"Combien de personnes environ figurent dans vos bases de données ?", sub:"Une estimation suffit. Cela détermine le niveau de risque et les mesures de sécurité recommandées.", type:"select", options:["Moins de 100 personnes","Entre 100 et 500 personnes","Entre 500 et 2 000 personnes","Entre 2 000 et 10 000 personnes","Plus de 10 000 personnes","Je ne sais pas"] },
+  { id:"finalites", bloc:2, blocTitle:"Données traitées", icon:"🎯", q:"Dans quel but utilisez-vous ces données ?", sub:"Cochez toutes les finalités applicables à votre activité.", type:"checkbox", options:["Gestion de la relation client (devis, suivi, SAV)","Facturation et comptabilité","Envoi de newsletters ou communications marketing","Livraison de commandes","Prise de rendez-vous en ligne","Suivi médical ou bien-être","Gestion des ressources humaines et de la paie","Recrutement de collaborateurs","Statistiques et analyses d'audience","Prospection commerciale","Accès à un espace client ou abonné","Obligation légale ou réglementaire"] },
+  { id:"durees_conservation", bloc:2, blocTitle:"Données traitées", icon:"🗓️", q:"Avez-vous défini des durées de conservation pour vos données ?", sub:"Si vous ne savez pas, nous définirons les durées légales adaptées à votre secteur.", type:"select", options:["Oui, des durées précises sont définies par catégorie de données","Oui, une durée générale (ex. : 3 ans après la fin de la relation client)","Non, les données sont conservées sans limite définie","Je ne sais pas"] },
+
+  // ══ BLOC 3 : COLLECTE & BASES LÉGALES (4 q.) ═════════════════════════════
+  { id:"moyens_collecte", bloc:3, blocTitle:"Collecte & Bases légales", icon:"📥", q:"Comment collectez-vous les données personnelles de vos clients ?", sub:"Cochez tous les moyens utilisés.", type:"checkbox", options:["Formulaire de contact sur votre site web","Formulaire de commande ou de prise de rendez-vous en ligne","Inscription à une newsletter","Prise de contact téléphonique","En personne (boutique, cabinet, bureau)","Dossier client papier","CRM ou logiciel métier","Réseaux sociaux (messages, formulaires)","Formulaires imprimés ou numériques envoyés au client","Autre"] },
+  { id:"base_legale", bloc:3, blocTitle:"Collecte & Bases légales", icon:"⚖️", q:"Sur quelle base légale reposent principalement vos collectes de données ?", sub:"La base légale justifie pourquoi vous avez le droit de traiter ces données. Si vous ne savez pas, nous l'identifierons pour vous.", type:"select", options:["Consentement explicite de la personne (opt-in)","Exécution d'un contrat avec la personne","Respect d'une obligation légale (comptabilité, déclarations…)","Intérêt légitime de l'entreprise (prospection B2B, sécurité…)","Mission d'intérêt public","Plusieurs bases légales selon les traitements","Je ne sais pas — RGPD Express le déterminera pour moi"] },
+  { id:"partage_donnees", bloc:3, blocTitle:"Collecte & Bases légales", icon:"🔗", q:"Transmettez-vous des données personnelles à des tiers ?", sub:"Partenaires commerciaux, prestataires, revendeurs… (hors sous-traitants techniques comme votre hébergeur).", type:"radio", options:["Non, les données restent uniquement en interne","Oui, à des partenaires commerciaux (co-marketing, revendeurs…)","Oui, dans le cadre d'un groupe ou d'une franchise","Oui, à des organismes publics ou réglementateurs (obligation légale)"] },
+  { id:"transferts_hors_ue", bloc:3, blocTitle:"Collecte & Bases légales", icon:"🌍", q:"Utilisez-vous des outils hébergés hors de l'Union européenne ?", sub:"Google, Mailchimp, Stripe, Meta, Amazon AWS sont américains. Cela nécessite une mention spécifique dans votre politique de confidentialité.", type:"radio", options:["Non, tous mes outils sont hébergés dans l'UE","Oui, j'utilise des outils américains ou hors UE","Je ne sais pas — RGPD Express le vérifiera"] },
+
+  // ══ BLOC 4 : SITE WEB & OUTILS NUMÉRIQUES (6 q.) ═══════════════════════
+  { id:"site_web", bloc:4, blocTitle:"Site web & Outils", icon:"🌐", q:"Quelle est l'adresse de votre site web ?", sub:"Si vous n'avez pas encore de site, indiquez « Pas de site web ».", type:"text", placeholder:"Ex : https://www.mon-entreprise.fr ou Pas de site web" },
+  { id:"cms", bloc:4, blocTitle:"Site web & Outils", icon:"🖥️", q:"Sur quelle technologie votre site est-il construit ?", sub:"Cela nous permet d'adapter le guide d'intégration à votre situation exacte.", type:"select", options:["WordPress (avec ou sans WooCommerce)","Shopify","Wix","Squarespace","Webflow","PrestaShop","Site développé sur mesure (React, Vue, PHP…)","Je ne sais pas","Pas de site web"] },
+  { id:"hebergeur", bloc:4, blocTitle:"Site web & Outils", icon:"🖧", q:"Qui héberge votre site web ?", sub:"Informations obligatoires dans les mentions légales : nom, adresse et téléphone de l'hébergeur.", type:"text", placeholder:"Ex : OVHcloud, Vercel, Netlify, 1&1 IONOS, O2Switch, Infomaniak… ou Je ne sais pas" },
+  { id:"outils_emailing", bloc:4, blocTitle:"Site web & Outils", icon:"📨", q:"Quels outils utilisez-vous pour l'emailing ou la gestion de vos contacts ?", sub:"Ces outils sont des sous-traitants RGPD — ils doivent figurer dans vos documents.", type:"checkbox", options:["Mailchimp","Brevo (ex-Sendinblue)","Klaviyo","HubSpot","ActiveCampaign","Mailjet","Zoho Mail","Google Workspace (Gmail pro)","Je gère mes emails manuellement (sans outil dédié)","Aucun outil d'emailing"] },
+  { id:"outils_paiement_analytics", bloc:4, blocTitle:"Site web & Outils", icon:"💳", q:"Quels outils de paiement et d'analyse utilisez-vous ?", sub:"Cochez tout ce qui s'applique — chaque outil traite des données de vos clients.", type:"checkbox", options:["Stripe","PayPal","SumUp","Square","Google Analytics / GA4","Meta Pixel / Facebook Ads","Google Ads / Tag Manager","Matomo (analytics)","Hotjar ou Clarity","Autre outil analytics","Aucun outil de paiement en ligne","Aucun outil analytics"] },
+  { id:"outils_metier", bloc:4, blocTitle:"Site web & Outils", icon:"🔧", q:"Utilisez-vous d'autres logiciels professionnels qui traitent des données clients ?", sub:"CRM, logiciel de facturation, agenda en ligne, outil de visioconférence, ERP…", type:"textarea", placeholder:"Ex : Notion (CRM), Calendly (réservation), Zoom, QuickBooks (facturation), Doctolib (rdv)… ou Aucun autre outil" },
+
+  // ══ BLOC 5 : SÉCURITÉ & COLLABORATEURS (4 q.) ════════════════════════════
+  { id:"mesures_securite", bloc:5, blocTitle:"Sécurité & Organisation", icon:"🛡️", q:"Quelles mesures de sécurité avez-vous mises en place ?", sub:"Soyez honnête — cela permet de rédiger des recommandations pertinentes dans votre registre.", type:"checkbox", options:["Mots de passe robustes (12+ caractères, uniques par service)","Double authentification (2FA) activée sur vos comptes","Site en HTTPS (certificat SSL actif)","Sauvegardes régulières de vos données","Antivirus / pare-feu à jour","Chiffrement des données sensibles","Accès restreints selon les fonctions (principe du moindre privilège)","Formation ou sensibilisation de l'équipe à la sécurité","Aucune mesure spécifique mise en place"] },
+  { id:"collaborateurs_acces", bloc:5, blocTitle:"Sécurité & Organisation", icon:"👥", q:"Des collaborateurs ou prestataires ont-ils accès aux données de vos clients ?", sub:"Cela détermine si une charte informatique et une notice employés sont nécessaires.", type:"radio", options:["Non — je suis seul(e) à accéder aux données","Oui — des salariés y accèdent dans le cadre de leur mission","Oui — des prestataires externes y accèdent (comptable, développeur, stagiaire…)","Oui — des salariés ET des prestataires y accèdent"] },
+  { id:"violations_anterieures", bloc:5, blocTitle:"Sécurité & Organisation", icon:"⚠️", q:"Avez-vous déjà subi une violation ou perte de données personnelles ?", sub:"Piratage, email envoyé aux mauvais destinataires, ordinateur volé, base de données exposée…", type:"radio", options:["Non, aucune violation à ma connaissance","Oui, un incident mineur (corrigé sans signalement)","Oui, un incident significatif (notifié à la CNIL ou aux personnes concernées)","Je ne suis pas certain(e)"] },
+  { id:"conformite_existante", bloc:5, blocTitle:"Sécurité & Organisation", icon:"✅", q:"Quels éléments de conformité RGPD avez-vous déjà en place ?", sub:"Sélectionnez ce qui existe, même si c'est incomplet ou obsolète.", type:"checkbox", options:["Une politique de confidentialité (même ancienne ou générique)","Une bannière de consentement cookies","Un registre des traitements","Des mentions légales sur le site","Des contrats de sous-traitance (DPA) avec vos prestataires","Un DPO (Délégué à la Protection des Données) nommé","Une procédure de réponse aux demandes de droits","Aucun élément de conformité en place"] },
+
+  // ══ BLOC 6 : INFORMATIONS LÉGALES (4 q.) ══════════════════════════════════
+  { id:"adresse_siege", bloc:6, blocTitle:"Informations légales", icon:"📍", q:"Quelle est l'adresse complète de votre siège social ou lieu d'exercice ?", sub:"Obligatoire dans les mentions légales. Adresse, code postal, ville.", type:"text", placeholder:"Ex : 13 avenue des Mélèzes, 25200 Grand-Charmont" },
+  { id:"capital_tva", bloc:6, blocTitle:"Informations légales", icon:"💼", q:"Quel est votre capital social et/ou votre numéro de TVA intracommunautaire ?", sub:"Pour les sociétés. Si auto-entrepreneur ou sans TVA, indiquez « Non applicable ».", type:"text", placeholder:"Ex : Capital : 1 000 € — TVA : FR12 123456789 — ou Non applicable" },
+  { id:"responsable_publication", bloc:6, blocTitle:"Informations légales", icon:"🧑‍💼", q:"Qui est le responsable de publication du site ?", sub:"Nom et qualité de la personne responsable du contenu du site. Obligatoire dans les mentions légales.", type:"text", placeholder:"Ex : Louca Foughali, Gérant — ou Moi-même (si indépendant)" },
+  { id:"referent_rgpd", bloc:6, blocTitle:"Informations légales", icon:"🔑", q:"Qui sera le référent RGPD de votre structure ?", sub:"Personne chargée de gérer les demandes de droits et de veiller à la conformité au quotidien.", type:"text", placeholder:"Ex : Moi-même (gérant) — ou Prénom Nom, Responsable administratif" },
 ];
+
+// ─── Détermine l'offre recommandée selon les réponses du Bloc 1 ────────────
+function getOfferRecommendation(ans) {
+  let score = 0;
+  const eff = ans.effectif || "";
+  if (eff.includes("6 à 10") || eff.includes("11") || eff.includes("21") || eff.includes("50")) score += 3;
+  // donnees_sensibles est un tableau (checkbox) — vérification correcte
+  const sens = Array.isArray(ans.donnees_sensibles) ? ans.donnees_sensibles : [];
+  if (sens.length > 0 && !sens.some(s => s.startsWith("Aucune"))) score += 3;
+  const collab = ans.collaborateurs_acces || "";
+  if (collab.includes("salariés") || collab.includes("prestataires") || collab.includes("ET")) score += 2;
+  const vol = ans.volume_donnees || "";
+  if (vol.includes("2 000") || vol.includes("10 000")) score += 1;
+  return score >= 3 ? "equipe" : "solo";
+}
 
 // ─── HOOKS ───
 function useInView(t = 0.1) {
@@ -148,8 +189,6 @@ export default function App() {
   const [anim, setAnim] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [faq, setFaq] = useState(null);
-  const [contactForm, setContactForm] = useState({ name: "", email: "", message: "" });
-  const [contactSent, setContactSent] = useState(false);
 
   // ── Questionnaire client ──
   const [clientQi, setClientQi] = useState(0);
@@ -256,7 +295,7 @@ export default function App() {
       <LH>4. Destinataires des données</LH>
       <LP>Les données collectées sont destinées exclusivement à RGPD Express. Elles ne sont en aucun cas cédées, vendues ou louées à des tiers.</LP>
       <LP>Les sous-traitants suivants sont susceptibles d'accéder aux données dans le cadre de leurs prestations :</LP>
-      <LP>• <strong>Hébergeur du site</strong> : Vercel Inc. (États-Unis, certifié Data Privacy Framework) — données techniques d'hébergement<br/>• <strong>Service de messagerie</strong> : OVHcloud (France) — données de contact</LP>
+      <LP>• <strong>Hébergeur du site</strong> : Vercel Inc. (États-Unis, certifié Data Privacy Framework) — infrastructure d'hébergement<br/>• <strong>Service d'envoi des dossiers clients</strong> : Resend Inc. (États-Unis, certifié Data Privacy Framework) — envoi des documents de conformité par e-mail<br/>• <strong>Service de paiement</strong> : Stripe Inc. (États-Unis, certifié Data Privacy Framework) — traitement des abonnements</LP>
 
       <LH>5. Durée de conservation</LH>
       <LP>Les données de contact sont conservées pendant une durée de 3 ans à compter du dernier échange. Les données relatives aux clients sous contrat sont conservées pendant toute la durée de la relation contractuelle, puis 5 ans à compter de la fin du contrat conformément aux obligations comptables et fiscales. Les données de navigation sont conservées pour une durée maximale de 13 mois.</LP>
@@ -481,10 +520,29 @@ export default function App() {
   if (view === "questionnaire") {
     const allQ = CLIENT_QUESTIONS;
     const q = allQ[clientQi];
-    const prog = Math.round((clientQi / allQ.length) * 100);
-    const currentVal = clientAns[q.id] || "";
+    const prog = Math.round(((clientQi + 1) / allQ.length) * 100);
+    const isCheckbox = q.type === "checkbox";
+    const isRadio = q.type === "radio";
+    const currentVal = clientAns[q.id] !== undefined ? clientAns[q.id] : (isCheckbox ? [] : "");
     const isLast = clientQi === allQ.length - 1;
-    const canNext = q.type === "select" ? currentVal !== "" : currentVal.trim().length > 0;
+    // Le badge offre apparaît à partir de la question 7 (après le bloc 1 complet)
+
+    // Validation
+    const canNext = isCheckbox
+      ? (Array.isArray(currentVal) && currentVal.length > 0)
+      : (typeof currentVal === "string" ? currentVal.trim().length > 0 : currentVal !== "");
+
+    const toggleCheckbox = (opt) => {
+      const arr = Array.isArray(currentVal) ? [...currentVal] : [];
+      if (arr.includes(opt)) {
+        setClientAns({ ...clientAns, [q.id]: arr.filter(x => x !== opt) });
+      } else {
+        // If "Aucune…" is selected, deselect everything else; if anything else is selected, deselect "Aucune…"
+        const isNone = opt.startsWith("Aucune");
+        const withoutNone = arr.filter(x => !x.startsWith("Aucune"));
+        setClientAns({ ...clientAns, [q.id]: isNone ? [opt] : [...withoutNone, opt] });
+      }
+    };
 
     const nextQ = () => {
       if (!canNext) return;
@@ -507,28 +565,86 @@ export default function App() {
         <div style={{ width: 52, height: 52, borderRadius: "50%", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", animation: "spin 0.85s linear infinite", marginBottom: 28 }} />
         <Logo />
         <h3 style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: "#0f172a", margin: "18px 0 8px" }}>Génération de votre dossier…</h3>
-        <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.7, margin: 0 }}>Vos documents sont en cours de création.<br />Cela prend environ 30 à 60 secondes.</p>
+        <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.7, margin: 0 }}>Vos documents sont en cours de création par notre IA juridique.<br />Cela prend environ 60 secondes.</p>
       </div>
     );
 
     if (submitted) return (
-      <div style={{ fontFamily: FB, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#fff", padding: "24px", textAlign: "center" }}>
+      <div style={{ fontFamily: FB, minHeight: "100vh", background: "#fafbfc", padding: "36px 24px 60px" }}>
         <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#dcfce7", border: "2px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, marginBottom: 20 }}>✓</div>
-        <Logo />
-        <h2 style={{ fontFamily: FH, fontSize: 26, fontWeight: 700, color: "#0f172a", margin: "20px 0 10px" }}>Votre dossier est en route !</h2>
-        <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.7, maxWidth: 420, margin: "0 auto 6px" }}>
-          Vos documents ont été générés et envoyés à<br />
-          <strong style={{ color: "#0f172a" }}>{clientAns.email}</strong>
-        </p>
-        <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 28 }}>Vérifiez vos spams si vous ne le recevez pas dans 5 minutes.</p>
-        <div style={{ background: "#f8fafc", borderRadius: 14, border: "1px solid #e2e8f0", padding: "20px 28px", maxWidth: 360, width: "100%", marginBottom: 20 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 8 }}>Une question ? Besoin d'aide pour l'intégration ?</p>
-          <a href="tel:+33769469376" style={{ fontSize: 16, fontWeight: 700, color: "#2563eb", textDecoration: "none" }}>📞 07 69 46 93 76</a>
+        <style>{`@keyframes checkIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}@keyframes spin2{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+        <div style={{ maxWidth: 520, margin: "0 auto" }}>
+
+          {/* Logo */}
+          <div style={{ textAlign: "center", marginBottom: 28 }}><Logo /></div>
+
+          {/* Carte succès */}
+          <div style={{ background: "#fff", borderRadius: 24, border: "1px solid #bbf7d0", padding: "36px 28px", textAlign: "center", marginBottom: 14, boxShadow: "0 4px 24px rgba(22,163,74,0.08)" }}>
+            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#dcfce7", border: "3px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38, margin: "0 auto 20px", animation: "checkIn 0.5s ease forwards" }}>✓</div>
+            <h2 style={{ fontFamily: FH, fontSize: 26, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>Votre dossier est en cours de génération</h2>
+            <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.65, margin: "0 auto 14px", maxWidth: 380 }}>
+              Vos documents RGPD personnalisés sont créés et seront envoyés à :
+            </p>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 22px", background: "#f0fdf4", borderRadius: 100, border: "1px solid #bbf7d0", marginBottom: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#166534" }}>📧 {clientAns.email}</span>
+            </div>
+            <p style={{ fontSize: 12, color: "#d97706", margin: "4px 0 0", fontWeight: 600 }}>⚠️ Si vous ne le recevez pas dans 10 min, vérifiez vos spams.</p>
+          </div>
+
+          {/* Timeline */}
+          <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #e2e8f0", padding: "26px 26px", marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 18 }}>Ce qui se passe maintenant</div>
+            {[
+              { icon: "⚡", title: "Génération en cours", desc: "Notre IA rédige vos documents sur la base de vos réponses.", active: true },
+              { icon: "📧", title: "Envoi par e-mail", desc: `Votre dossier complet arrive à ${clientAns.email} dans quelques minutes.`, active: false },
+              { icon: "📞", title: "Prise de contact", desc: "Nous vous contactons pour planifier votre accompagnement visio inclus.", active: false },
+            ].map((s, i) => (
+              <div key={i} style={{ display: "flex", gap: 14, marginBottom: i < 2 ? 18 : 0, position: "relative" }}>
+                {i < 2 && <div style={{ position: "absolute", left: 19, top: 40, width: 2, height: 22, background: "#f1f5f9" }} />}
+                <div style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: s.active ? 18 : 13, background: s.active ? "#2563eb" : "#f8fafc", border: `2px solid ${s.active ? "#2563eb" : "#e2e8f0"}`, color: s.active ? "#fff" : "#94a3b8", fontWeight: 700 }}>
+                  {s.active ? s.icon : i + 1}
+                </div>
+                <div style={{ flex: 1, paddingTop: 7 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: s.active ? "#2563eb" : "#0f172a", marginBottom: 2 }}>{s.title}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{s.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Documents inclus */}
+          <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #e2e8f0", padding: "26px 26px", marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 16 }}>Votre dossier comprend</div>
+            {[
+              "📋 Registre des traitements personnalisé",
+              "🔒 Politique de confidentialité sur mesure",
+              "⚖️ Mentions légales complètes",
+              "🍪 Texte de bannière de consentement",
+              "📖 Guide d'intégration illustré (adapté à votre CMS)",
+            ].map((doc, i, arr) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: i < arr.length - 1 ? "1px solid #f8fafc" : "none" }}>
+                <span style={{ color: "#16a34a", fontWeight: 700, fontSize: 12 }}>✓</span>
+                <span style={{ fontSize: 13, color: "#1e293b" }}>{doc}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Contact */}
+          <div style={{ background: "#0f172a", borderRadius: 20, padding: "24px 28px", textAlign: "center", marginBottom: 18 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.6)", margin: "0 0 8px" }}>Une question ? Besoin d'aide pour l'intégration ?</p>
+            <a href="tel:+33769469376" style={{ fontSize: 22, fontWeight: 700, color: "#fff", textDecoration: "none" }}>📞 07 69 46 93 76</a>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 6 }}>Louca Foughali — RGPD Express</p>
+          </div>
+
+          <div style={{ textAlign: "center" }}>
+            <button onClick={reset} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 22px", color: "#64748b", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>← Retour à l'accueil</button>
+          </div>
         </div>
-        <button onClick={reset} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 22px", color: "#64748b", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>← Retour à l'accueil</button>
       </div>
     );
+
+    // Offer badge after bloc 1
+    const offerRec = clientQi >= 5 ? getOfferRecommendation(clientAns) : null;
 
     return (
       <div style={{ fontFamily: FB, minHeight: "100vh", background: "#fff" }}>
@@ -539,7 +655,7 @@ export default function App() {
           .qi:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
           .qi::placeholder{color:#94a3b8}
           .qi-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:44px;cursor:pointer}
-          .qi-ta{resize:vertical;min-height:120px;line-height:1.6}
+          .qi-ta{resize:vertical;min-height:110px;line-height:1.6}
           .btn-main{width:100%;padding:16px;border-radius:12px;font-size:15px;font-weight:700;font-family:'DM Sans',-apple-system,sans-serif;border:none;transition:all .2s;margin-top:14px;cursor:pointer}
           .btn-main:disabled{background:#f1f5f9;color:#94a3b8;cursor:default;box-shadow:none}
           .btn-main:not(:disabled){background:#2563eb;color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.28)}
@@ -547,51 +663,119 @@ export default function App() {
           .btn-main:not(:disabled):active{transform:scale(.98)}
           .btn-back{width:100%;padding:13px;border-radius:12px;font-size:13px;font-family:'DM Sans',-apple-system,sans-serif;background:none;color:#94a3b8;border:1.5px solid #f1f5f9;cursor:pointer;margin-top:8px;transition:all .2s}
           .btn-back:hover{border-color:#e2e8f0;color:#64748b}
-          @media(max-width:480px){.qi{font-size:16px;padding:15px 16px}}
+          .cb-item{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all .15s;margin-bottom:8px;user-select:none}
+          .cb-item:hover{border-color:#93c5fd;background:#f8faff}
+          .cb-item.selected{border-color:#2563eb;background:#eff6ff}
+          .cb-box{width:20px;height:20px;min-width:20px;border:2px solid #cbd5e1;border-radius:5px;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px}
+          .cb-item.selected .cb-box{background:#2563eb;border-color:#2563eb}
+          .rb-item{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all .15s;margin-bottom:8px;user-select:none}
+          .rb-item:hover{border-color:#93c5fd;background:#f8faff}
+          .rb-item.selected{border-color:#2563eb;background:#eff6ff}
+          .rb-dot{width:20px;height:20px;min-width:20px;border:2px solid #cbd5e1;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px}
+          .rb-item.selected .rb-dot{background:#2563eb;border-color:#2563eb}
+          @media(max-width:480px){.qi{font-size:16px;padding:14px 16px}.cb-item,.rb-item{padding:10px 12px}}
         `}</style>
-        <div style={{ maxWidth: 580, margin: "0 auto", padding: "24px 20px 64px" }}>
+        <div style={{ maxWidth: 600, margin: "0 auto", padding: "20px 20px 64px" }}>
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <Logo />
-            <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>{clientQi + 1} / {allQ.length}</span>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>Question {clientQi + 1} / {allQ.length}</div>
+              <div style={{ fontSize: 10, color: "#cbd5e1" }}>Bloc {q.bloc} / 6 — {q.blocTitle}</div>
+            </div>
           </div>
           {/* Barre de progression */}
-          <div style={{ height: 4, background: "#f1f5f9", borderRadius: 2, overflow: "hidden", marginBottom: 32 }}>
-            <div style={{ height: "100%", width: `${prog}%`, background: "linear-gradient(90deg,#2563eb,#3b82f6)", borderRadius: 2, transition: "width .5s ease" }} />
+          <div style={{ height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden", marginBottom: 10 }}>
+            <div style={{ height: "100%", width: `${prog}%`, background: "linear-gradient(90deg,#2563eb,#3b82f6)", borderRadius: 3, transition: "width .5s ease" }} />
           </div>
+          {/* Blocs progress dots */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
+            {[1,2,3,4,5,6].map(b => (
+              <div key={b} style={{ flex: 1, height: 3, borderRadius: 2, background: q.bloc > b ? "#2563eb" : q.bloc === b ? "#93c5fd" : "#e2e8f0", transition: "background .3s" }} />
+            ))}
+          </div>
+
+          {/* Offer badge (after bloc 1) */}
+          {offerRec && (
+            <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: offerRec === "equipe" ? "#fef3c7" : "#dbeafe", border: `1px solid ${offerRec === "equipe" ? "#fcd34d" : "#93c5fd"}`, fontSize: 12, color: offerRec === "equipe" ? "#92400e" : "#1d4ed8", fontWeight: 600 }}>
+              {offerRec === "equipe"
+                ? "💡 Offre recommandée : Équipe (59€/mois) — votre profil nécessite des documents supplémentaires (DPA, charte interne, notice employés)"
+                : "💡 Offre recommandée : Solo (29€/mois) — adaptée à votre profil"}
+            </div>
+          )}
+
           {/* Question */}
           <div style={{ opacity: clientAnim ? 0 : 1, transform: clientAnim ? "translateX(-10px)" : "none", transition: "opacity .22s ease,transform .22s ease" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "#f1f5f9", borderRadius: 20, fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 16 }}>
-              <span>{q.icon}</span>{q.cat}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "#f1f5f9", borderRadius: 20, fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 14 }}>
+              <span>{q.icon}</span>{q.blocTitle}
             </div>
-            <h2 style={{ fontSize: "clamp(18px,4vw,22px)", fontWeight: 700, color: "#0f172a", lineHeight: 1.35, marginBottom: 8 }}>{q.q}</h2>
-            <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, marginBottom: 22 }}>{q.sub}</p>
-            {/* Champ de saisie */}
-            {q.type === "select" ? (
+            <h2 style={{ fontSize: "clamp(17px,4vw,21px)", fontWeight: 700, color: "#0f172a", lineHeight: 1.35, marginBottom: 7 }}>{q.q}</h2>
+            <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, marginBottom: 18 }}>{q.sub}</p>
+
+            {/* ── CHECKBOX ── */}
+            {isCheckbox && (
+              <div>
+                {q.options.map(opt => {
+                  const sel = Array.isArray(currentVal) && currentVal.includes(opt);
+                  return (
+                    <div key={opt} className={`cb-item${sel ? " selected" : ""}`} onClick={() => toggleCheckbox(opt)}>
+                      <div className="cb-box">{sel && <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}</div>
+                      <span style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.4 }}>{opt}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── RADIO ── */}
+            {isRadio && (
+              <div>
+                {q.options.map(opt => {
+                  const sel = currentVal === opt;
+                  return (
+                    <div key={opt} className={`rb-item${sel ? " selected" : ""}`} onClick={() => setClientAns({ ...clientAns, [q.id]: opt })}>
+                      <div className="rb-dot">{sel && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />}</div>
+                      <span style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.4 }}>{opt}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── SELECT ── */}
+            {q.type === "select" && (
               <select className="qi qi-select" value={currentVal} onChange={e => setClientAns({ ...clientAns, [q.id]: e.target.value })}>
                 <option value="">— Choisissez une option —</option>
                 {q.options.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
-            ) : q.type === "textarea" ? (
+            )}
+
+            {/* ── TEXTAREA ── */}
+            {q.type === "textarea" && (
               <textarea className="qi qi-ta" value={currentVal} placeholder={q.placeholder} onChange={e => setClientAns({ ...clientAns, [q.id]: e.target.value })} />
-            ) : (
+            )}
+
+            {/* ── TEXT / EMAIL ── */}
+            {(q.type === "text" || q.type === "email") && (
               <input autoFocus className="qi" type={q.type} value={currentVal} placeholder={q.placeholder}
                 onChange={e => setClientAns({ ...clientAns, [q.id]: e.target.value })}
                 onKeyDown={e => { if (e.key === "Enter" && canNext) nextQ(); }} />
             )}
+
             <button className="btn-main" disabled={!canNext} onClick={nextQ}>
               {isLast ? "Générer mon dossier de conformité →" : "Continuer →"}
             </button>
+            {isCheckbox && !canNext && <p style={{ fontSize: 11, color: "#f59e0b", textAlign: "center", marginTop: 8 }}>Sélectionnez au moins une option</p>}
             {clientQi > 0 && <button className="btn-back" onClick={prevQ}>← Question précédente</button>}
           </div>
-          {/* Pied de confiance */}
-          <p style={{ textAlign: "center", fontSize: 11, color: "#cbd5e1", marginTop: 36 }}>
-            🔒 Données confidentielles · Utilisées uniquement pour générer votre dossier
+          <p style={{ textAlign: "center", fontSize: 11, color: "#cbd5e1", marginTop: 32 }}>
+            🔒 Données confidentielles · Utilisées uniquement pour générer votre dossier RGPD
           </p>
         </div>
       </div>
     );
   }
+
 
   // ═══ HOME ═══
   const faqs = [
@@ -764,7 +948,7 @@ export default function App() {
           </Fade>
           <div className="steps-grid" style={{ display: "grid", gap: 16 }}>
             {[
-              { num: "01", title: "Vous répondez", desc: "Un questionnaire structuré de 15 questions sur votre activité. En langage courant, sans jargon. Durée : 15 minutes.", badge: "Sans compétence juridique" },
+              { num: "01", title: "Vous répondez", desc: "Un questionnaire intelligent de 28 questions en 6 blocs. En langage courant, sans jargon. Durée : 20 minutes.", badge: "Sans compétence juridique" },
               { num: "02", title: "Nous produisons", desc: "L'intégralité de votre dossier de conformité : registre, politique, bannière, mentions légales. Personnalisés pour votre activité.", badge: "Livraison sous 48 heures" },
               { num: "03", title: "Vous intégrez", desc: "Un copier-coller suffit pour publier vos documents. Un guide illustré et un accompagnement visio sont inclus.", badge: "Accompagnement offert" },
             ].map((s, i) => (
@@ -780,6 +964,116 @@ export default function App() {
               </Fade>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ══ APERÇU DU DOSSIER ══ */}
+      <section style={{ padding: "70px 24px 80px", background: "#fff" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <Fade>
+            <div style={{ textAlign: "center", marginBottom: 48 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.15em" }}>Contenu de votre dossier</span>
+              <h2 style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: "#0f172a", margin: "10px 0 10px" }}>
+                Ce que vous recevez,{" "}
+                <em style={{ fontStyle: "italic", color: "#2563eb" }}>en détail.</em>
+              </h2>
+              <p style={{ fontSize: 15, color: "#64748b", maxWidth: 560, margin: "0 auto", lineHeight: 1.7 }}>
+                Chaque dossier est rédigé spécifiquement pour votre activité, votre secteur et vos outils. Pas de modèles génériques.
+              </p>
+            </div>
+          </Fade>
+
+          {/* 5 cartes documents */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 40 }}>
+            {[
+              {
+                num: "01", icon: "📋", color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe",
+                title: "Registre des traitements",
+                desc: "Document obligatoire n°1 selon la CNIL. Recense tous vos traitements de données avec bases légales, durées de conservation et sous-traitants identifiés.",
+                tag: "Obligatoire — art. 30 RGPD"
+              },
+              {
+                num: "02", icon: "🔒", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe",
+                title: "Politique de confidentialité",
+                desc: "Rédigée selon votre secteur et vos outils. Mentions les bases légales exactes, vos sous-traitants et les droits de vos clients.",
+                tag: "Obligatoire — LCEN & RGPD"
+              },
+              {
+                num: "03", icon: "⚖️", color: "#0891b2", bg: "#ecfeff", border: "#a5f3fc",
+                title: "Mentions légales",
+                desc: "Conformes à la loi LCEN. Renseignent vos visiteurs sur l'éditeur, l'hébergeur, la propriété intellectuelle et le droit applicable.",
+                tag: "Obligatoire — LCEN 2004"
+              },
+              {
+                num: "04", icon: "🍪", color: "#d97706", bg: "#fffbeb", border: "#fde68a",
+                title: "Texte de bannière cookies",
+                desc: "Conforme aux recommandations CNIL 2024 et à la directive ePrivacy. Boutons Accepter et Refuser à égale visibilité.",
+                tag: "Obligatoire — directive ePrivacy"
+              },
+              {
+                num: "05", icon: "📖", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0",
+                title: "Guide d'intégration illustré",
+                desc: "Étapes détaillées adaptées à votre CMS (WordPress, Shopify, Wix…). Intégration complète en 30 minutes. Accompagnement visio inclus.",
+                tag: "Inclus dans chaque offre"
+              },
+            ].map((d, i) => (
+              <Fade key={i} delay={i * 0.07}>
+                <div style={{ background: "#fff", borderRadius: 18, border: `1.5px solid ${d.border}`, padding: "26px 22px", display: "flex", flexDirection: "column", height: "100%", transition: "transform 0.2s, box-shadow 0.2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 12px 32px ${d.border}`; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+                  {/* Numéro + icône */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: d.bg, border: `1.5px solid ${d.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{d.icon}</div>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: d.color, letterSpacing: "0.05em" }}>{d.num}</span>
+                  </div>
+                  {/* Titre */}
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: "0 0 8px", lineHeight: 1.3 }}>{d.title}</h3>
+                  {/* Description */}
+                  <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.65, margin: "0 0 16px", flex: 1 }}>{d.desc}</p>
+                  {/* Tag légal */}
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", background: d.bg, borderRadius: 20, border: `1px solid ${d.border}` }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: d.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>{d.tag}</span>
+                  </div>
+                </div>
+              </Fade>
+            ))}
+          </div>
+
+          {/* CTA exemple PDF */}
+          <Fade delay={0.3}>
+            <div style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", borderRadius: 24, padding: "40px 36px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 24, position: "relative", overflow: "hidden" }}>
+              {/* Décoration */}
+              <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
+              <div style={{ position: "relative" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 12px", background: "rgba(37,99,235,0.15)", borderRadius: 100, border: "1px solid rgba(37,99,235,0.3)", marginBottom: 12 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#93c5fd", textTransform: "uppercase", letterSpacing: "0.1em" }}>Exemple réel</span>
+                </div>
+                <h3 style={{ fontFamily: FH, fontSize: 22, fontWeight: 700, color: "#fff", margin: "0 0 8px", lineHeight: 1.3 }}>
+                  Découvrez un dossier complet<br />
+                  <em style={{ fontStyle: "italic", color: "#93c5fd" }}>avant de vous engager.</em>
+                </h3>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", margin: 0, maxWidth: 400, lineHeight: 1.6 }}>
+                  Un dossier exemple complet (5 documents) généré pour une boutique e-commerce. Exactement ce que vous recevez après votre questionnaire.
+                </p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start", position: "relative" }}>
+                <a
+                  href="/exemple-dossier-rgpd.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "15px 28px", borderRadius: 14, fontSize: 15, fontWeight: 700, fontFamily: FB, background: "#fff", color: "#0f172a", textDecoration: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.25)", transition: "all 0.2s", whiteSpace: "nowrap" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(0,0,0,0.3)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.25)"; }}>
+                  <span style={{ fontSize: 18 }}>📄</span>
+                  Voir un exemple de dossier →
+                </a>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ color: "#16a34a", fontSize: 12 }}>✓</span>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Gratuit · Aucun engagement · PDF complet (5 documents)</span>
+                </div>
+              </div>
+            </div>
+          </Fade>
         </div>
       </section>
 
@@ -934,9 +1228,9 @@ export default function App() {
             <div style={{ maxWidth: 500, margin: "28px auto 0", textAlign: "center", padding: "24px", background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0" }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>Vous êtes client RGPD Express ?</p>
               <p style={{ fontSize: 11, color: "#64748b", marginBottom: 14 }}>Votre avis nous aide à nous améliorer et aide d'autres entrepreneurs à faire le bon choix.</p>
-              <a href={`mailto:${EMAIL}?subject=Mon avis sur RGPD Express&body=Bonjour,%0A%0AJe souhaite laisser un avis sur RGPD Express.%0A%0AMon nom : %0AMon entreprise : %0AMon avis : %0A%0ANote (sur 5) : %0A%0ACordialement`}
-                style={{ display: "inline-block", padding: "10px 24px", borderRadius: 10, fontSize: 12, fontWeight: 700, fontFamily: FB, background: "#f8fafc", color: "#0f172a", border: "1.5px solid #e2e8f0", textDecoration: "none", transition: "all 0.2s" }}>
-                Laisser un avis →
+              <a href="https://g.page/r/CQHWQl1a9sJVEBM/review" target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-block", padding: "10px 24px", borderRadius: 10, fontSize: 12, fontWeight: 700, fontFamily: FB, background: "#2563eb", color: "#fff", border: "none", textDecoration: "none", transition: "all 0.2s", boxShadow: "0 2px 8px rgba(37,99,235,0.25)" }}>
+                ⭐ Laisser un avis Google →
               </a>
             </div>
           </Fade>
