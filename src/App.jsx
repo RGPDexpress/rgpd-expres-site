@@ -1,5 +1,32 @@
 import { useState, useEffect, useRef } from "react";
 
+// ─── COOKIE BANNER ──────────────────────────────────────────
+function CookieBanner() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    try { if (!localStorage.getItem("cookie_consent")) setVisible(true); } catch { setVisible(true); }
+  }, []);
+  const accept = () => { try { localStorage.setItem("cookie_consent", "accepted"); } catch {} setVisible(false); };
+  const refuse = () => { try { localStorage.setItem("cookie_consent", "refused"); } catch {} setVisible(false); };
+  if (!visible) return null;
+  return (
+    <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999, background: "#0f172a", borderTop: "1px solid #1e293b", padding: "16px 24px", fontFamily: "'DM Sans',-apple-system,sans-serif" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.6, margin: 0 }}>
+            <strong style={{ color: "#fff" }}>🍪 Cookies</strong> — Ce site utilise uniquement des cookies strictement nécessaires à son fonctionnement (session de paiement Stripe). Aucun cookie publicitaire ni de traçage n'est utilisé.{" "}
+            <span style={{ color: "#93c5fd", cursor: "pointer", textDecoration: "underline", fontSize: 12 }} onClick={() => { try { document.getElementById("banner-policy-link").click(); } catch {} }}>En savoir plus</span>
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexShrink: 0, alignItems: "center" }}>
+          <button onClick={refuse} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: "transparent", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", fontFamily: "inherit" }}>Refuser les optionnels</button>
+          <button onClick={accept} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer", fontFamily: "inherit" }}>J'accepte</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 // RGPD EXPRESS — SITE INTERNET PROFESSIONNEL
 // Conçu pour inspirer confiance et convertir
@@ -72,15 +99,7 @@ const QUESTIONS = [
 ];
 const MAX_SC = 22;
 
-// ─── TESTIMONIALS ───
-const TESTIMONIALS = [
-  { name: "Marie Dumont", role: "Gérante — Boutique en ligne", text: "Je repoussais la mise en conformité depuis trois ans par manque de temps et de compétences. RGPD Express a produit l'ensemble de mes documents en 48 heures. L'accompagnement visio m'a permis de tout intégrer à mon site en 20 minutes. Je suis sereine.", rating: 5, date: "Mars 2026" },
-  { name: "Thomas Renard", role: "Consultant indépendant", text: "En tant qu'auto-entrepreneur, je pensais ne pas être concerné. L'audit m'a révélé cinq points critiques sur mon activité. Aujourd'hui, mes documents sont à jour et je sais que si la réglementation évolue, RGPD Express les met à jour automatiquement. C'est ce qui justifie l'abonnement.", rating: 5, date: "Février 2026" },
-  { name: "Sophie Laurent", role: "Directrice — Agence immobilière", text: "Notre expert-comptable nous a orientés vers RGPD Express. En deux semaines, les quatre collaborateurs de l'agence étaient formés, nos documents publiés et notre registre complet. Le suivi mensuel nous garantit une conformité permanente.", rating: 5, date: "Janvier 2026" },
-  { name: "Alexandre Morel", role: "Gérant — Cabinet de coaching", text: "La veille réglementaire est pour moi l'élément le plus précieux. Lorsque la réglementation a évolué en début d'année, j'ai reçu une alerte et mes documents ont été mis à jour avant même que j'en prenne connaissance. C'est exactement le service que j'attends d'un abonnement.", rating: 5, date: "Mars 2026" },
-  { name: "Claire Petit", role: "Fondatrice — Site e-commerce beauté", text: "J'avais une bannière cookies copiée d'un autre site et aucune politique de confidentialité digne de ce nom. RGPD Express m'a tout repris de zéro. Le guide d'intégration illustré est remarquable : chaque étape est expliquée avec des captures d'écran adaptées à Shopify.", rating: 5, date: "Février 2026" },
-  { name: "Julien Barbier", role: "Artisan plombier", text: "Je gère mes clients avec un simple fichier Excel et je pensais être hors du radar de la CNIL. L'audit m'a montré que j'étais exposé sur six points. Pour 29 € par mois, je suis protégé et mes documents restent conformes même si les lois changent. C'est une assurance.", rating: 5, date: "Mars 2026" },
-];
+// Témoignages réels à ajouter dès réception des premiers avis clients Google
 
 // ─── QUESTIONS QUESTIONNAIRE CLIENT ───────────────────────────────────────
 // 29 questions en 6 blocs — détermine l'offre, les documents et leur contenu
@@ -196,6 +215,7 @@ export default function App() {
   const [clientAnim, setClientAnim] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 50);
@@ -232,12 +252,11 @@ export default function App() {
     const next = [...ans, opt]; setAns(next);
     setTimeout(() => { if (qi < QUESTIONS.length - 1) setQi(qi + 1); else setView("results"); setAnim(false); window.scrollTo(0, 0); }, 350);
   };
-  const reset = () => { setView("home"); setQi(0); setAns([]); window.scrollTo(0, 0); };
+  const reset = () => { setView("home"); setQi(0); setAns([]); setClientQi(0); setClientAns({}); setConsentChecked(false); window.scrollTo(0, 0); };
   const goLegal = (page) => { setView(page); window.scrollTo(0, 0); };
 
   const LegalPage = ({ title, children }) => (
     <div style={{ fontFamily: FB, minHeight: "100vh", background: "#fff" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "28px 24px 60px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
           <div onClick={reset} style={{ cursor: "pointer" }}><Logo /></div>
@@ -285,8 +304,9 @@ export default function App() {
       <LH>2. Données collectées</LH>
       <LP>Dans le cadre de son activité, RGPD Express est susceptible de collecter les catégories de données suivantes :</LP>
       <LP><strong>Données de contact :</strong> nom, prénom, adresse électronique, numéro de téléphone — collectées via le formulaire de contact ou par échange direct (e-mail, téléphone).</LP>
-      <LP><strong>Données liées à l'audit en ligne :</strong> les réponses au questionnaire d'audit de conformité sont traitées localement dans votre navigateur. Elles ne sont ni transmises, ni stockées sur nos serveurs.</LP>
-      <LP><strong>Données de navigation :</strong> dans le cas où un outil d'analyse d'audience est utilisé, les données techniques suivantes peuvent être collectées : adresse IP (anonymisée), type de navigateur, durée de visite, pages consultées.</LP>
+      <LP><strong>Données liées à l'audit rapide (8 questions) :</strong> les réponses au questionnaire d'audit de conformité proposé gratuitement sur le site sont calculées localement dans votre navigateur. Elles ne sont ni transmises, ni stockées sur nos serveurs.</LP>
+      <LP><strong>Données liées au questionnaire client complet (29 questions) :</strong> les réponses au questionnaire de conformité rempli après souscription sont transmises de manière sécurisée à notre serveur dans le but exclusif de générer votre dossier RGPD personnalisé. Ces données sont utilisées uniquement pour la génération des documents et ne sont pas conservées sur nos serveurs au-delà du traitement. Base légale : exécution du contrat (article 6.1.b du RGPD).</LP>
+      <LP><strong>Données de navigation :</strong> le site n'utilise aucun outil de mesure d'audience ni cookie de traçage. Seuls des cookies strictement nécessaires au fonctionnement du service de paiement (Stripe) sont utilisés.</LP>
 
       <LH>3. Finalités et bases légales</LH>
       <LP>Les données collectées sont utilisées aux fins suivantes :</LP>
@@ -295,7 +315,7 @@ export default function App() {
       <LH>4. Destinataires des données</LH>
       <LP>Les données collectées sont destinées exclusivement à RGPD Express. Elles ne sont en aucun cas cédées, vendues ou louées à des tiers.</LP>
       <LP>Les sous-traitants suivants sont susceptibles d'accéder aux données dans le cadre de leurs prestations :</LP>
-      <LP>• <strong>Hébergeur du site</strong> : Vercel Inc. (États-Unis, certifié Data Privacy Framework) — infrastructure d'hébergement<br/>• <strong>Service d'envoi des dossiers clients</strong> : Resend Inc. (États-Unis, certifié Data Privacy Framework) — envoi des documents de conformité par e-mail<br/>• <strong>Service de paiement</strong> : Stripe Inc. (États-Unis, certifié Data Privacy Framework) — traitement des abonnements</LP>
+      <LP>• <strong>Hébergeur du site</strong> : Vercel Inc. (États-Unis, certifié Data Privacy Framework) — infrastructure d'hébergement<br/>• <strong>Service d'envoi des dossiers clients</strong> : Resend Inc. (États-Unis, certifié Data Privacy Framework) — envoi des documents de conformité par e-mail<br/>• <strong>Service de paiement</strong> : Stripe Inc. (États-Unis, certifié Data Privacy Framework) — traitement des abonnements<br/>• <strong>Génération des documents</strong> : Anthropic PBC (États-Unis, certifié Data Privacy Framework) — traitement de l'intelligence artificielle pour la génération des dossiers de conformité<br/>• <strong>Hébergement des polices de caractères</strong> : Bunny.net d.o.o. (Slovénie, Union européenne) — fourniture des polices d'écriture du site sans collecte de données personnelles</LP>
 
       <LH>5. Durée de conservation</LH>
       <LP>Les données de contact sont conservées pendant une durée de 3 ans à compter du dernier échange. Les données relatives aux clients sous contrat sont conservées pendant toute la durée de la relation contractuelle, puis 5 ans à compter de la fin du contrat conformément aux obligations comptables et fiscales. Les données de navigation sont conservées pour une durée maximale de 13 mois.</LP>
@@ -307,8 +327,9 @@ export default function App() {
       <LP>En cas de difficulté, vous disposez du droit d'introduire une réclamation auprès de la CNIL : www.cnil.fr.</LP>
 
       <LH>7. Cookies</LH>
-      <LP>Le site www.rgpd.express utilise exclusivement des cookies strictement nécessaires à son fonctionnement. Aucun cookie publicitaire ou de traçage n'est déposé sans votre consentement préalable.</LP>
-      <LP>Si un outil de mesure d'audience est mis en place (ex. : Google Analytics), une bannière de consentement vous permettra d'accepter ou de refuser le dépôt de cookies avant toute activation des traceurs.</LP>
+      <LP>Le site www.rgpd.express utilise exclusivement des cookies strictement nécessaires à son fonctionnement technique et au traitement sécurisé des paiements (Stripe). Aucun cookie publicitaire, de traçage ou de mesure d'audience n'est utilisé.</LP>
+      <LP>Une bannière d'information vous est présentée lors de votre première visite conformément aux recommandations de la CNIL. Vous pouvez à tout moment modifier vos préférences en effaçant les données de votre navigateur.</LP>
+      <LP>Le site ne recourt à aucun outil d'analyse d'audience (Google Analytics, Matomo, etc.). Les polices de caractères sont servies par Bunny.net (Slovénie, UE), un prestataire européen sans collecte de données personnelles, en remplacement de Google Fonts.</LP>
 
       <LH>8. Sécurité</LH>
       <LP>RGPD Express met en œuvre les mesures techniques et organisationnelles appropriées pour protéger les données personnelles contre tout accès non autorisé, toute perte, toute altération ou toute divulgation, notamment : chiffrement des communications (protocole HTTPS/TLS), hébergement sur une infrastructure sécurisée conforme au Data Privacy Framework, accès restreint aux données par authentification sécurisée.</LP>
@@ -400,7 +421,6 @@ export default function App() {
     const lastAns = qi > 0 ? ans[qi - 1] : null;
     return (
       <div style={{ fontFamily: FB, minHeight: "100vh", background: "#fff" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <div style={{ maxWidth: 600, margin: "0 auto", padding: "24px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <Logo /><span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>Question {qi + 1} sur {QUESTIONS.length}</span>
@@ -440,7 +460,6 @@ export default function App() {
     const cats = QUESTIONS.map((q, i) => ({ cat: q.cat, icon: q.icon, risk: ans[i]?.risk, tip: ans[i]?.tip }));
     return (
       <div style={{ fontFamily: FB, minHeight: "100vh", background: "#fff" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <div style={{ maxWidth: 620, margin: "0 auto", padding: "28px 24px 60px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
             <Logo /><span style={{ fontSize: 12, color: "#94a3b8" }}>Rapport d'audit</span>
@@ -560,7 +579,6 @@ export default function App() {
 
     if (submitting) return (
       <div style={{ fontFamily: FB, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#fff", padding: "24px", textAlign: "center" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
         <div style={{ width: 52, height: 52, borderRadius: "50%", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", animation: "spin 0.85s linear infinite", marginBottom: 28 }} />
         <Logo />
@@ -571,7 +589,6 @@ export default function App() {
 
     if (submitted) return (
       <div style={{ fontFamily: FB, minHeight: "100vh", background: "#fafbfc", padding: "36px 24px 60px" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <style>{`@keyframes checkIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}@keyframes spin2{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
         <div style={{ maxWidth: 520, margin: "0 auto" }}>
 
@@ -648,7 +665,6 @@ export default function App() {
 
     return (
       <div style={{ fontFamily: FB, minHeight: "100vh", background: "#fff" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <style>{`
           *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
           .qi{width:100%;padding:16px 18px;font-size:16px;font-family:'DM Sans',-apple-system,sans-serif;border:2px solid #e2e8f0;border-radius:12px;color:#0f172a;outline:none;transition:border-color .2s,box-shadow .2s;background:#fff;-webkit-appearance:none;appearance:none;display:block}
@@ -762,7 +778,16 @@ export default function App() {
                 onKeyDown={e => { if (e.key === "Enter" && canNext) nextQ(); }} />
             )}
 
-            <button className="btn-main" disabled={!canNext} onClick={nextQ}>
+            {isLast && (
+              <div style={{ marginTop: 18, padding: "14px 16px", background: "#f8faff", borderRadius: 10, border: "1px solid #dbeafe" }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", fontSize: 12, color: "#334155", lineHeight: 1.5 }}>
+                  <input type="checkbox" checked={consentChecked} onChange={e => setConsentChecked(e.target.checked)}
+                    style={{ marginTop: 2, accentColor: "#2563eb", width: 16, height: 16, flexShrink: 0 }} />
+                  <span>J'accepte que RGPD Express traite les informations renseignées ci-dessus dans le but exclusif de générer mon dossier de conformité RGPD personnalisé. Conformément au RGPD, je dispose d'un droit d'accès, de rectification et de suppression de mes données en écrivant à <strong>contact@rgpd.express</strong>.</span>
+                </label>
+              </div>
+            )}
+            <button className="btn-main" disabled={!canNext || (isLast && !consentChecked)} onClick={nextQ}>
               {isLast ? "Générer mon dossier de conformité →" : "Continuer →"}
             </button>
             {isCheckbox && !canNext && <p style={{ fontSize: 11, color: "#f59e0b", textAlign: "center", marginTop: 8 }}>Sélectionnez au moins une option</p>}
@@ -784,12 +809,12 @@ export default function App() {
     { q: "Pourquoi un abonnement mensuel et non un paiement unique ?", a: "La conformité RGPD n'est pas un événement ponctuel. La réglementation évolue régulièrement (AI Act, NIS2, recommandations CNIL…), et vos documents doivent être mis à jour en conséquence. L'abonnement garantit que votre politique de confidentialité, votre registre et votre bannière restent conformes en permanence, sans intervention de votre part." },
     { q: "Combien de temps l'intégration nécessite-t-elle ?", a: "L'intégration des documents sur votre site (politique de confidentialité, mentions légales, bannière) ne nécessite que quelques minutes de copier-coller. Un guide illustré, adapté à votre CMS (WordPress, Shopify, Wix…), vous est fourni. Un accompagnement visio est également inclus si vous souhaitez être guidé." },
     { q: "Quels sont les risques concrets en cas d'inaction ?", a: "Les sanctions CNIL ont augmenté de 340 % en 2025. Les amendes s'échelonnent de 5 000 € pour les infractions simples à plusieurs millions d'euros pour les cas les plus graves. Au-delà de l'amende, 72 % des consommateurs déclarent renoncer à acheter auprès d'une entreprise non conforme." },
-    { q: "Où sont hébergées mes données ?", a: "RGPD Express est intégralement conforme au RGPD, avec chiffrement de bout en bout et une architecture privacy by design. Notre infrastructure repose sur des prestataires certifiés, conformes au Data Privacy Framework (accord UE-US). Les données de l'audit sont traitées localement dans votre navigateur et ne transitent par aucun serveur." },
+    { q: "Où sont hébergées mes données ?", a: "RGPD Express est intégralement conforme au RGPD, avec chiffrement de bout en bout et une architecture privacy by design. Notre infrastructure repose sur des prestataires certifiés, conformes au Data Privacy Framework (accord UE-US). Les réponses au questionnaire d'audit rapide (8 questions) sont calculées localement dans votre navigateur et ne sont pas transmises à nos serveurs. Les réponses au questionnaire client complet (29 questions, après paiement) sont envoyées de manière sécurisée à notre serveur pour générer votre dossier personnalisé, puis supprimées après traitement." },
   ];
 
   return (
     <div style={{ fontFamily: FB, background: "#fff", color: "#1e293b", overflowX: "hidden" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <CookieBanner />
       <style>{`
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html{scroll-behavior:smooth}
@@ -877,9 +902,9 @@ export default function App() {
       {/* TRUST BAR */}
       <div style={{ borderTop: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9", padding: "14px 24px", background: "#fafbfc" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", gap: 28, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Ils nous font confiance</span>
-          {["Cabinet Morin & Associés", "Fleur de Sel E-shop", "ImmoVista Lyon", "CoachFit Paris", "Brasserie du Marais"].map((n, i) => (
-            <span key={i} style={{ fontSize: 13, color: "#cbd5e1", fontWeight: 600 }}>{n}</span>
+          <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Conforme aux exigences</span>
+          {["CNIL", "Règlement (UE) 2016/679", "Directive ePrivacy", "LCEN 2004", "AI Act 2025"].map((n, i) => (
+            <span key={i} style={{ fontSize: 12, color: "#cbd5e1", fontWeight: 600 }}>{n}</span>
           ))}
         </div>
       </div>
@@ -926,7 +951,7 @@ export default function App() {
           </div>
           <Fade delay={0.4}>
             <div style={{ textAlign: "center", marginTop: 24 }}>
-              <p style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>Sources : délibérations publiques de la CNIL — 2025-2026</p>
+              <p style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>Cas illustratifs basés sur les types de manquements sanctionnés par la CNIL — délibérations publiques 2024-2026</p>
               <button onClick={startAudit} style={{ marginTop: 12, padding: "12px 28px", borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: FB, background: "#dc2626", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(220,38,38,0.2)" }}>
                 Vérifier ma conformité →
               </button>
@@ -948,7 +973,7 @@ export default function App() {
           </Fade>
           <div className="steps-grid" style={{ display: "grid", gap: 16 }}>
             {[
-              { num: "01", title: "Vous répondez", desc: "Un questionnaire intelligent de 28 questions en 6 blocs. En langage courant, sans jargon. Durée : 20 minutes.", badge: "Sans compétence juridique" },
+              { num: "01", title: "Vous répondez", desc: "Un questionnaire intelligent de 29 questions en 6 blocs. En langage courant, sans jargon. Durée : 20 minutes.", badge: "Sans compétence juridique" },
               { num: "02", title: "Nous produisons", desc: "L'intégralité de votre dossier de conformité : registre, politique, bannière, mentions légales. Personnalisés pour votre activité.", badge: "Livraison sous 48 heures" },
               { num: "03", title: "Vous intégrez", desc: "Un copier-coller suffit pour publier vos documents. Un guide illustré et un accompagnement visio sont inclus.", badge: "Accompagnement offert" },
             ].map((s, i) => (
@@ -1201,35 +1226,24 @@ export default function App() {
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <Fade>
             <div style={{ textAlign: "center", marginBottom: 36 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.15em" }}>Témoignages</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.15em" }}>Avis clients</span>
               <h2 style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: "#0f172a", margin: "10px 0" }}>
-                Ce qu'en disent <em style={{ fontStyle: "italic", color: "#2563eb" }}>nos clients.</em>
+                Soyez parmi les <em style={{ fontStyle: "italic", color: "#2563eb" }}>premiers clients.</em>
               </h2>
+              <p style={{ fontSize: 14, color: "#64748b", maxWidth: 480, margin: "0 auto", lineHeight: 1.7 }}>
+                RGPD Express vient de lancer. Nous accompagnons nos premiers clients avec une attention personnalisée exceptionnelle. Votre avis comptera.
+              </p>
             </div>
           </Fade>
-          <div className="grid-3" style={{ display: "grid", gap: 14 }}>
-            {TESTIMONIALS.map((t, i) => (
-              <Fade key={i} delay={i * 0.07}>
-                <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", padding: "24px 20px", height: "100%", display: "flex", flexDirection: "column" }}>
-                  <div style={{ display: "flex", gap: 1, marginBottom: 10 }}>
-                    {[...Array(t.rating)].map((_, j) => <span key={j} style={{ color: "#f59e0b", fontSize: 13 }}>★</span>)}
-                  </div>
-                  <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.65, flex: 1, margin: "0 0 14px" }}>« {t.text} »</p>
-                  <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{t.name}</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{t.role} · {t.date}</div>
-                  </div>
-                </div>
-              </Fade>
-            ))}
-          </div>
-          {/* Formulaire d'avis */}
-          <Fade delay={0.5}>
-            <div style={{ maxWidth: 500, margin: "28px auto 0", textAlign: "center", padding: "24px", background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>Vous êtes client RGPD Express ?</p>
-              <p style={{ fontSize: 11, color: "#64748b", marginBottom: 14 }}>Votre avis nous aide à nous améliorer et aide d'autres entrepreneurs à faire le bon choix.</p>
+          <Fade delay={0.2}>
+            <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center", padding: "40px 32px", background: "#fff", borderRadius: 20, border: "1.5px solid #e2e8f0", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
+              <h3 style={{ fontFamily: FH, fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 10px" }}>Vous êtes déjà client RGPD Express ?</h3>
+              <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.7, marginBottom: 22 }}>
+                Votre retour d'expérience aide d'autres entrepreneurs à prendre la bonne décision. Laissez un avis Google en 2 minutes.
+              </p>
               <a href="https://g.page/r/CQHWQl1a9sJVEBM/review" target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-block", padding: "10px 24px", borderRadius: 10, fontSize: 12, fontWeight: 700, fontFamily: FB, background: "#2563eb", color: "#fff", border: "none", textDecoration: "none", transition: "all 0.2s", boxShadow: "0 2px 8px rgba(37,99,235,0.25)" }}>
+                style={{ display: "inline-block", padding: "13px 28px", borderRadius: 10, fontSize: 14, fontWeight: 700, fontFamily: FB, background: "#2563eb", color: "#fff", border: "none", textDecoration: "none", transition: "all 0.2s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}>
                 ⭐ Laisser un avis Google →
               </a>
             </div>
@@ -1267,7 +1281,7 @@ export default function App() {
           <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "center", padding: "44px 32px", background: "#0f172a", borderRadius: 24, color: "#fff", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: -30, right: -30, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
             <div style={{ position: "relative" }}>
-              <p style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8 }}>Plus de 120 entreprises accompagnées en 2026</p>
+              <p style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8 }}>Mise en conformité rapide · Accompagnement inclus</p>
               <h2 style={{ fontFamily: FH, fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>
                 Protégez votre entreprise <em style={{ fontStyle: "italic", color: "#93c5fd" }}>dès aujourd'hui.</em>
               </h2>
@@ -1329,4 +1343,3 @@ export default function App() {
     </div>
   );
 }
-
