@@ -14,8 +14,8 @@ export default async function handler(req, res) {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
-        max_tokens: 6000,
+        model: "claude-sonnet-4-6",
+        max_tokens: 3500,
         messages: [{ role: "user", content: buildPrompt(a) }],
       }),
     });
