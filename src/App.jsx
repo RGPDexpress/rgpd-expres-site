@@ -19,8 +19,8 @@ function CookieBanner() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexShrink: 0, alignItems: "center" }}>
-          <button onClick={refuse} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: "transparent", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", fontFamily: "inherit" }}>Refuser les optionnels</button>
-          <button onClick={accept} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer", fontFamily: "inherit" }}>J'accepte</button>
+          <button onClick={refuse} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: "transparent", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", fontFamily: "inherit" }}>Fermer</button>
+          <button onClick={accept} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 700, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer", fontFamily: "inherit" }}>J'ai compris</button>
         </div>
       </div>
     </div>
@@ -128,9 +128,10 @@ const CLIENT_QUESTIONS = [
   { id:"transferts_hors_ue", bloc:3, blocTitle:"Collecte & Bases légales", icon:"🌍", q:"Utilisez-vous des outils hébergés hors de l'Union européenne ?", sub:"Google, Mailchimp, Stripe, Meta, Amazon AWS sont américains. Cela nécessite une mention spécifique dans votre politique de confidentialité.", type:"radio", options:["Non, tous mes outils sont hébergés dans l'UE","Oui, j'utilise des outils américains ou hors UE","Je ne sais pas — RGPD Express le vérifiera"] },
 
   // ══ BLOC 4 : SITE WEB & OUTILS NUMÉRIQUES (6 q.) ═══════════════════════
-  { id:"site_web", bloc:4, blocTitle:"Site web & Outils", icon:"🌐", q:"Quelle est l'adresse de votre site web ?", sub:"Si vous n'avez pas encore de site, indiquez « Pas de site web ».", type:"text", placeholder:"Ex : https://www.mon-entreprise.fr ou Pas de site web" },
-  { id:"cms", bloc:4, blocTitle:"Site web & Outils", icon:"🖥️", q:"Sur quelle technologie votre site est-il construit ?", sub:"Cela nous permet d'adapter le guide d'intégration à votre situation exacte.", type:"select", options:["WordPress (avec ou sans WooCommerce)","Shopify","Wix","Squarespace","Webflow","PrestaShop","Site développé sur mesure (React, Vue, PHP…)","Je ne sais pas","Pas de site web"] },
-  { id:"hebergeur", bloc:4, blocTitle:"Site web & Outils", icon:"🖧", q:"Qui héberge votre site web ?", sub:"Informations obligatoires dans les mentions légales : nom, adresse et téléphone de l'hébergeur.", type:"text", placeholder:"Ex : OVHcloud, Vercel, Netlify, 1&1 IONOS, O2Switch, Infomaniak… ou Je ne sais pas" },
+  { id:"site_web", bloc:4, blocTitle:"Site web & Outils", icon:"🌐", q:"Avez-vous un site web professionnel ?", sub:"Cela détermine les documents à inclure dans votre dossier et le guide d'intégration adapté.", type:"radio", options:["Oui — et je vais saisir son adresse ci-dessous","Je n'ai pas de site web"] },
+  { id:"site_web_url", bloc:4, blocTitle:"Site web & Outils", icon:"🔗", q:"Quelle est l'adresse de votre site web ?", sub:"Copiez-collez l'URL exacte de votre site.", type:"text", placeholder:"Ex : https://www.mon-entreprise.fr", skipIf:(ans) => ans.site_web === "Je n'ai pas de site web" },
+  { id:"cms", bloc:4, blocTitle:"Site web & Outils", icon:"🖥️", q:"Sur quelle technologie votre site est-il construit ?", sub:"Cela nous permet d'adapter le guide d'intégration à votre situation exacte.", type:"select", options:["WordPress (avec ou sans WooCommerce)","Shopify","Wix","Squarespace","Webflow","PrestaShop","Site développé sur mesure (React, Vue, PHP…)","Je ne sais pas"], skipIf:(ans) => ans.site_web === "Je n'ai pas de site web" },
+  { id:"hebergeur", bloc:4, blocTitle:"Site web & Outils", icon:"🖧", q:"Qui héberge votre site web ?", sub:"Informations obligatoires dans les mentions légales : nom, adresse et téléphone de l'hébergeur.", type:"text", placeholder:"Ex : OVHcloud, Vercel, Netlify, 1&1 IONOS, O2Switch, Infomaniak… ou Je ne sais pas", skipIf:(ans) => ans.site_web === "Je n'ai pas de site web" },
   { id:"outils_emailing", bloc:4, blocTitle:"Site web & Outils", icon:"📨", q:"Quels outils utilisez-vous pour l'emailing ou la gestion de vos contacts ?", sub:"Ces outils sont des sous-traitants RGPD — ils doivent figurer dans vos documents.", type:"checkbox", options:["Mailchimp","Brevo (ex-Sendinblue)","Klaviyo","HubSpot","ActiveCampaign","Mailjet","Zoho Mail","Google Workspace (Gmail pro)","Je gère mes emails manuellement (sans outil dédié)","Aucun outil d'emailing"] },
   { id:"outils_paiement_analytics", bloc:4, blocTitle:"Site web & Outils", icon:"💳", q:"Quels outils de paiement et d'analyse utilisez-vous ?", sub:"Cochez tout ce qui s'applique — chaque outil traite des données de vos clients.", type:"checkbox", options:["Stripe","PayPal","SumUp","Square","Google Analytics / GA4","Meta Pixel / Facebook Ads","Google Ads / Tag Manager","Matomo (analytics)","Hotjar ou Clarity","Autre outil analytics","Aucun outil de paiement en ligne","Aucun outil analytics"] },
   { id:"outils_metier", bloc:4, blocTitle:"Site web & Outils", icon:"🔧", q:"Utilisez-vous d'autres logiciels professionnels qui traitent des données clients ?", sub:"CRM, logiciel de facturation, agenda en ligne, outil de visioconférence, ERP…", type:"textarea", placeholder:"Ex : Notion (CRM), Calendly (réservation), Zoom, QuickBooks (facturation), Doctolib (rdv)… ou Aucun autre outil" },
@@ -211,22 +212,26 @@ export default function App() {
 
   // ── Questionnaire client ──
   const [clientQi, setClientQi] = useState(0);
-  const [clientAns, setClientAns] = useState({});
+  const [clientAns, setClientAns] = useState(() => { try { const s = sessionStorage.getItem("rgpd_progress"); return s ? JSON.parse(s) : {}; } catch { return {}; } });
   const [clientAnim, setClientAnim] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [fromPayment, setFromPayment] = useState(false);
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", h); return () => window.removeEventListener("scroll", h);
   }, []);
 
-  // Détection URL ?questionnaire pour redirection depuis l'email Stripe
+  // Détection URL ?questionnaire pour redirection depuis Stripe
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.has("questionnaire")) {
-      setView("questionnaire"); setClientQi(0); setClientAns({}); window.scrollTo(0, 0);
+      setFromPayment(true);
+      setView("questionnaire"); setClientQi(0); setClientAns({});
+      try { sessionStorage.removeItem("rgpd_progress"); } catch {}
+      window.scrollTo(0, 0);
     }
   }, []);
 
@@ -242,7 +247,7 @@ export default function App() {
       setSubmitting(false); setSubmitted(true); window.scrollTo(0, 0);
     } catch {
       setSubmitting(false);
-      alert("Une erreur est survenue. Veuillez réessayer ou nous contacter au 07 69 46 93 76.");
+      alert("Une erreur technique est survenue lors de la génération de votre dossier. Veuillez réessayer dans quelques minutes ou nous contacter directement au 07 69 46 93 76 — nous vous enverrons votre dossier manuellement sous 24h.");
     }
   };
 
@@ -252,7 +257,7 @@ export default function App() {
     const next = [...ans, opt]; setAns(next);
     setTimeout(() => { if (qi < QUESTIONS.length - 1) setQi(qi + 1); else setView("results"); setAnim(false); window.scrollTo(0, 0); }, 350);
   };
-  const reset = () => { setView("home"); setQi(0); setAns([]); setClientQi(0); setClientAns({}); setConsentChecked(false); window.scrollTo(0, 0); };
+  const reset = () => { setView("home"); setQi(0); setAns([]); setClientQi(0); setClientAns({}); setConsentChecked(false); setFromPayment(false); try { sessionStorage.removeItem("rgpd_progress"); } catch {}; window.scrollTo(0, 0); };
   const goLegal = (page) => { setView(page); window.scrollTo(0, 0); };
 
   const LegalPage = ({ title, children }) => (
@@ -521,10 +526,23 @@ export default function App() {
               <span style={{ fontSize: 14, color: "#64748b" }}>€ HT / mois</span>
             </div>
             <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 18px" }}>Documents actualisés en continu · Sans engagement</p>
-            <a href="https://buy.stripe.com/8x29AU5ro6sXeR2cahfUQ01" target="_blank" rel="noopener noreferrer" style={{
-              display: "inline-block", padding: "14px 32px", borderRadius: 12, fontSize: 15, fontWeight: 700, fontFamily: FB,
-              background: "#2563eb", color: "#fff", textDecoration: "none", boxShadow: "0 4px 16px rgba(37,99,235,0.3)", transition: "all 0.2s"
-            }}>Démarrer ma mise en conformité →</a>
+            {crits >= 4 ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "14px 18px", marginBottom: 14, fontSize: 13, color: "#991b1b", lineHeight: 1.6 }}>
+                  <strong>⚠️ Votre audit révèle {crits} points critiques.</strong><br/>
+                  Votre situation nécessite l'offre <strong>Équipe (59€/mois)</strong> — elle inclut les accords de sous-traitance, la procédure de gestion des droits et la charte interne, obligatoires pour votre profil.
+                </div>
+                <a href="https://buy.stripe.com/eVq5kEbPMg3x38k8Y5fUQ00" target="_blank" rel="noopener noreferrer" style={{
+                  display: "inline-block", padding: "14px 32px", borderRadius: 12, fontSize: 15, fontWeight: 700, fontFamily: FB,
+                  background: "#dc2626", color: "#fff", textDecoration: "none", boxShadow: "0 4px 16px rgba(220,38,38,0.3)"
+                }}>Démarrer avec l'offre Équipe — 59€/mois →</a>
+              </div>
+            ) : (
+              <a href="https://buy.stripe.com/8x29AU5ro6sXeR2cahfUQ01" target="_blank" rel="noopener noreferrer" style={{
+                display: "inline-block", padding: "14px 32px", borderRadius: 12, fontSize: 15, fontWeight: 700, fontFamily: FB,
+                background: "#2563eb", color: "#fff", textDecoration: "none", boxShadow: "0 4px 16px rgba(37,99,235,0.3)"
+              }}>Démarrer ma mise en conformité — 29€/mois →</a>
+            )}
             <p style={{ fontSize: 10, color: "#94a3b8", marginTop: 10 }}>Infrastructure sécurisée · Accompagnement inclus</p>
           </div>
           <div style={{ textAlign: "center" }}>
@@ -537,7 +555,7 @@ export default function App() {
 
   // ═══ QUESTIONNAIRE CLIENT ═══
   if (view === "questionnaire") {
-    const allQ = CLIENT_QUESTIONS;
+    const allQ = CLIENT_QUESTIONS.filter(q => !q.skipIf || !q.skipIf(clientAns));
     const q = allQ[clientQi];
     const prog = Math.round(((clientQi + 1) / allQ.length) * 100);
     const isCheckbox = q.type === "checkbox";
@@ -547,9 +565,12 @@ export default function App() {
     // Le badge offre apparaît à partir de la question 7 (après le bloc 1 complet)
 
     // Validation
+    const isValidEmail = q.type === "email"
+      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentVal)
+      : true;
     const canNext = isCheckbox
       ? (Array.isArray(currentVal) && currentVal.length > 0)
-      : (typeof currentVal === "string" ? currentVal.trim().length > 0 : currentVal !== "");
+      : (typeof currentVal === "string" ? currentVal.trim().length > 0 && isValidEmail : currentVal !== "");
 
     const toggleCheckbox = (opt) => {
       const arr = Array.isArray(currentVal) ? [...currentVal] : [];
@@ -567,6 +588,7 @@ export default function App() {
       if (!canNext) return;
       const updated = { ...clientAns, [q.id]: currentVal };
       setClientAns(updated);
+      try { sessionStorage.setItem("rgpd_progress", JSON.stringify(updated)); } catch {}
       if (isLast) { handleClientSubmit(updated); return; }
       setClientAnim(true);
       setTimeout(() => { setClientQi(i => i + 1); setClientAnim(false); window.scrollTo(0, 0); }, 240);
@@ -692,6 +714,16 @@ export default function App() {
           @media(max-width:480px){.qi{font-size:16px;padding:14px 16px}.cb-item,.rb-item{padding:10px 12px}}
         `}</style>
         <div style={{ maxWidth: 600, margin: "0 auto", padding: "20px 20px 64px" }}>
+          {/* Message de bienvenue post-paiement */}
+          {fromPayment && clientQi === 0 && (
+            <div style={{ background: "#dcfce7", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 20 }}>✅</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>Paiement confirmé — merci !</div>
+                <div style={{ fontSize: 12, color: "#166534", opacity: 0.85 }}>Répondez aux questions ci-dessous pour recevoir votre dossier RGPD personnalisé par email.</div>
+              </div>
+            </div>
+          )}
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <Logo />
