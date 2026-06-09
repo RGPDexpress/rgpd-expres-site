@@ -243,10 +243,16 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(finalAns),
       });
-      if (!r.ok) throw new Error("Erreur serveur");
+      if (!r.ok) {
+        let errDetail = "Erreur serveur";
+        try { const body = await r.json(); errDetail = body.error || errDetail; } catch {}
+        console.error("[RGPD Express] Erreur API submit:", r.status, errDetail);
+        throw new Error(errDetail);
+      }
       setSubmitting(false); setSubmitted(true); window.scrollTo(0, 0);
-    } catch {
+    } catch (err) {
       setSubmitting(false);
+      console.error("[RGPD Express] Erreur soumission:", err.message);
       alert("Une erreur technique est survenue lors de la génération de votre dossier. Veuillez réessayer dans quelques minutes ou nous contacter directement au 07 69 46 93 76 — nous vous enverrons votre dossier manuellement sous 24h.");
     }
   };
