@@ -46,8 +46,8 @@ export default async function handler(req, res) {
       throw new Error(`Resend: ${JSON.stringify(err)}`);
     }
 
-    // â”€â”€ Copie complÃ¨te du dossier vers Louca â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    await fetch("https://api.resend.com/emails", {
+    // â”€â”€ Copie complÃ¨te du dossier vers Louca + Enregistrement Notion (en parallÃ¨le, avec logs d'erreur rÃ©els) â”€â”€
+    const copyEmailPromise = fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -56,60 +56,62 @@ export default async function handler(req, res) {
         subject: `ðŸ“‹ Copie dossier â€” ${a.raison_sociale || "Client"} (${a.secteur || ""}) â€” ${a.email}`,
         html: buildEmail(a, docs),
       }),
-    }).catch(() => {});
+    }).then(async (r) => {
+      if (!r.ok) console.error("Copie email error â€” rÃ©ponse API:", r.status, await r.text());
+    }).catch((e) => console.error("Copie email error â€” exception:", e));
 
-    // â”€â”€ Enregistrement client dans Notion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    let notionPromise = Promise.resolve();
     if (process.env.NOTION_API_KEY && process.env.NOTION_CLIENTS_DB_ID) {
-      try {
-        const today = new Date().toISOString().split("T")[0];
-        const notesContent = [
-          `Secteur : ${a.secteur || "Non prÃ©cisÃ©"}`,
-          `Effectif : ${a.effectif || "Non prÃ©cisÃ©"}`,
-          `SIRET : ${a.siret || "Non prÃ©cisÃ©"}`,
-          `Site web : ${a.site_web || "Non prÃ©cisÃ©"}`,
-          `Adresse : ${a.adresse_siege || "Non prÃ©cisÃ©"}`,
-          `Forme juridique : ${a.forme_juridique || "Non prÃ©cisÃ©"}`,
-        ].join("\n");
+      const today = new Date().toISOString().split("T")[0];
+      const notesContent = [
+        `Secteur : ${a.secteur || "Non prÃ©cisÃ©"}`,
+        `Effectif : ${a.effectif || "Non prÃ©cisÃ©"}`,
+        `SIRET : ${a.siret || "Non prÃ©cisÃ©"}`,
+        `Site web : ${a.site_web || "Non prÃ©cisÃ©"}`,
+        `Adresse : ${a.adresse_siege || "Non prÃ©cisÃ©"}`,
+        `Forme juridique : ${a.forme_juridique || "Non prÃ©cisÃ©"}`,
+      ].join("\n");
 
-        // DÃ©coupage du dossier en blocs Notion (max 1900 chars/bloc, max 95 blocs)
-        const notionBlocks = [{
-          object: "block", type: "heading_1",
-          heading_1: { rich_text: [{ type: "text", text: { content: "ðŸ“‹ Dossier RGPD Complet" } }] },
-        }];
-        for (let i = 0; i < docs.length; i += 1900) {
-          notionBlocks.push({
-            object: "block", type: "paragraph",
-            paragraph: { rich_text: [{ type: "text", text: { content: docs.slice(i, i + 1900) } }] },
-          });
-          if (notionBlocks.length >= 95) break;
-        }
-
-        await fetch("https://api.notion.com/v1/pages", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.NOTION_API_KEY}`,
-            "Notion-Version": "2022-06-28",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            parent: { database_id: process.env.NOTION_CLIENTS_DB_ID },
-            properties: {
-              "Entreprise": { title: [{ type: "text", text: { content: a.raison_sociale || "Client sans nom" } }] },
-              "Email": { email: a.email },
-              "Dirigeant": { rich_text: [{ type: "text", text: { content: a.responsable_publication || "" } }] },
-              "Date de souscription": { date: { start: today } },
-              "Documents livrÃ©s": { checkbox: true },
-              "Notes": { rich_text: [{ type: "text", text: { content: notesContent } }] },
-              ...(a.telephone ? { "TÃ©lÃ©phone": { phone_number: a.telephone } } : {}),
-            },
-            children: notionBlocks,
-          }),
+      // DÃ©coupage du dossier en blocs Notion (max 1900 chars/bloc, max 95 blocs)
+      const notionBlocks = [{
+        object: "block", type: "heading_1",
+        heading_1: { rich_text: [{ type: "text", text: { content: "ðŸ“‹ Dossier RGPD Complet" } }] },
+      }];
+      for (let i = 0; i < docs.length; i += 1900) {
+        notionBlocks.push({
+          object: "block", type: "paragraph",
+          paragraph: { rich_text: [{ type: "text", text: { content: docs.slice(i, i + 1900) } }] },
         });
-      } catch (e) {
-        console.error("Notion error (non-bloquant):", e);
-        // Non-bloquant : une erreur Notion ne doit pas empÃªcher la rÃ©ponse au client
+        if (notionBlocks.length >= 95) break;
       }
+
+      notionPromise = fetch("https://api.notion.com/v1/pages", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.NOTION_API_KEY}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          parent: { database_id: process.env.NOTION_CLIENTS_DB_ID },
+          properties: {
+            "Entreprise": { title: [{ type: "text", text: { content: a.raison_sociale || "Client sans nom" } }] },
+            "Email": { email: a.email },
+            "Dirigeant": { rich_text: [{ type: "text", text: { content: a.responsable_publication || "" } }] },
+            "Date de souscription": { date: { start: today } },
+            "Documents livrÃ©s": { checkbox: true },
+            "Notes": { rich_text: [{ type: "text", text: { content: notesContent } }] },
+            ...(a.telephone ? { "TÃ©lÃ©phone": { phone_number: a.telephone } } : {}),
+          },
+          children: notionBlocks,
+        }),
+      }).then(async (r) => {
+        // Non-bloquant : une erreur Notion ne doit pas empÃªcher la rÃ©ponse au client, mais on la log toujours en dÃ©tail
+        if (!r.ok) console.error("Notion error â€” rÃ©ponse API:", r.status, await r.text());
+      }).catch((e) => console.error("Notion error â€” exception:", e));
     }
+
+    await Promise.all([copyEmailPromise, notionPromise]);
 
     res.status(200).json({ success: true });
   } catch (err) {
