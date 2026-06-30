@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/submit.js": {
-      "maxDuration": 60
+      "maxDuration": 295
     }
   },
   "rewrites": [
