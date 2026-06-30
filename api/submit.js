@@ -1,10 +1,90 @@
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 295 };
+
+// RÃ©essaie une requÃªte fetch en cas d'Ã©chec transitoire (incident rÃ©seau, timeout, erreur 5xx cÃ´tÃ© Resend/Notion).
+// Objectif : un simple blip chez un prestataire externe ne doit jamais faire Ã©chouer toute la livraison d'un dossier dÃ©jÃ  gÃ©nÃ©rÃ©.
+async function fetchWithRetry(url, options, retries = 2, delayMs = 800) {
+  let lastErr;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const r = await fetch(url, options);
+      if (r.ok) return r;
+      lastErr = new Error(`HTTP ${r.status}: ${await r.text()}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    if (i < retries) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  throw lastErr;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
   const a = req.body;
   if (!a || !a.email) return res.status(400).json({ error: "Email manquant" });
 
+  // â”€â”€ 0. VÃ©rification du paiement Stripe AVANT toute gÃ©nÃ©ration. â”€â”€
+  // Sans ce contrÃ´le, n'importe qui connaissant l'URL de l'API peut gÃ©nÃ©rer un dossier complet
+  // gratuitement (coÃ»t Anthropic + Resend pour rien, et le produit payant donnÃ© sans contrepartie).
+  // a.stripe_session_id provient du paramÃ¨tre ?session_id ajoutÃ© par Stripe sur l'URL de succÃ¨s
+  // du Payment Link â€” voir App.jsx. On vÃ©rifie (1) que la session existe et est payÃ©e, et (2) qu'elle
+  // n'a pas dÃ©jÃ  servi Ã  gÃ©nÃ©rer un dossier (une session payÃ©e ne doit produire qu'un seul dossier).
+  if (process.env.STRIPE_SECRET_KEY) {
+    if (!a.stripe_session_id) {
+      return res.status(402).json({ error: "Paiement requis : session de paiement introuvable." });
+    }
+    try {
+      const stripeRes = await fetch(
+        `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(a.stripe_session_id)}`,
+        { headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` } }
+      );
+      if (!stripeRes.ok) {
+        return res.status(402).json({ error: "Session de paiement invalide." });
+      }
+      const session = await stripeRes.json();
+      if (session.payment_status !== "paid") {
+        return res.status(402).json({ error: "Paiement non confirmÃ©." });
+      }
+    } catch (e) {
+      console.error("submit error â€” vÃ©rification Stripe:", e);
+      return res.status(402).json({ error: "Impossible de vÃ©rifier le paiement." });
+    }
+
+    // Anti-rÃ©utilisation : une session dÃ©jÃ  utilisÃ©e pour gÃ©nÃ©rer un dossier ne doit pas en gÃ©nÃ©rer un second.
+    if (process.env.NOTION_API_KEY && process.env.NOTION_CLIENTS_DB_ID) {
+      try {
+        const existing = await fetch(
+          `https://api.notion.com/v1/databases/${process.env.NOTION_CLIENTS_DB_ID}/query`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.NOTION_API_KEY}`,
+              "Notion-Version": "2022-06-28",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              filter: { property: "Stripe Session ID", rich_text: { equals: a.stripe_session_id } },
+            }),
+          }
+        );
+        if (existing.ok) {
+          const data = await existing.json();
+          if (Array.isArray(data.results) && data.results.length > 0) {
+            return res.status(409).json({ error: "Ce paiement a dÃ©jÃ  Ã©tÃ© utilisÃ© pour gÃ©nÃ©rer un dossier." });
+          }
+        }
+        // Si la requÃªte Notion Ã©choue (ex: propriÃ©tÃ© "Stripe Session ID" pas encore crÃ©Ã©e dans la base),
+        // on ne bloque pas un client qui a rÃ©ellement payÃ© â€” on log seulement pour investigation.
+        else {
+          console.error("Notion error â€” vÃ©rification anti-rÃ©utilisation:", existing.status, await existing.text());
+        }
+      } catch (e) {
+        console.error("Notion error â€” exception vÃ©rification anti-rÃ©utilisation:", e);
+      }
+    }
+  }
+
+  // â”€â”€ 1. GÃ©nÃ©ration du dossier par Claude. Si Ã§a Ã©choue, il n'y a rien Ã  livrer : on arrÃªte lÃ . â”€â”€
+  let docs;
   try {
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -15,7 +95,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 3500,
+        max_tokens: 10500,
         messages: [{ role: "user", content: buildPrompt(a) }],
       }),
     });
@@ -25,43 +105,17 @@ export default async function handler(req, res) {
       throw new Error(`Anthropic: ${err}`);
     }
     const aiData = await anthropicRes.json();
-    const docs = aiData.content[0].text;
+    docs = aiData.content[0].text;
+  } catch (err) {
+    console.error("submit error â€” gÃ©nÃ©ration IA:", err);
+    return res.status(500).json({ error: err.message });
+  }
 
-    const emailRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: `RGPD Express <${process.env.RESEND_FROM_EMAIL || "contact@rgpd.express"}>`,
-        to: a.email,
-        subject: `âœ… Votre dossier RGPD est prÃªt â€” ${a.raison_sociale || "Votre entreprise"}`,
-        html: buildEmail(a, docs),
-      }),
-    });
-
-    if (!emailRes.ok) {
-      const err = await emailRes.json();
-      throw new Error(`Resend: ${JSON.stringify(err)}`);
-    }
-
-    // â”€â”€ Copie complÃ¨te du dossier vers Louca + Enregistrement Notion (en parallÃ¨le, avec logs d'erreur rÃ©els) â”€â”€
-    const copyEmailPromise = fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: `RGPD Express <${process.env.RESEND_FROM_EMAIL || "contact@rgpd.express"}>`,
-        to: "contact@rgpd.express",
-        subject: `ðŸ“‹ Copie dossier â€” ${a.raison_sociale || "Client"} (${a.secteur || ""}) â€” ${a.email}`,
-        html: buildEmail(a, docs),
-      }),
-    }).then(async (r) => {
-      if (!r.ok) console.error("Copie email error â€” rÃ©ponse API:", r.status, await r.text());
-    }).catch((e) => console.error("Copie email error â€” exception:", e));
-
-    let notionPromise = Promise.resolve();
-    if (process.env.NOTION_API_KEY && process.env.NOTION_CLIENTS_DB_ID) {
+  // â”€â”€ 2. Le dossier existe : on le sauvegarde IMMÃ‰DIATEMENT dans Notion, AVANT toute tentative d'envoi d'email. â”€â”€
+  // Ainsi, mÃªme si Resend tombe en panne juste aprÃ¨s, le contenu dÃ©jÃ  gÃ©nÃ©rÃ© (et dÃ©jÃ  facturÃ© en tokens) n'est jamais perdu.
+  let notionPageId = null;
+  if (process.env.NOTION_API_KEY && process.env.NOTION_CLIENTS_DB_ID) {
+    try {
       const today = new Date().toISOString().split("T")[0];
       const notesContent = [
         `Secteur : ${a.secteur || "Non prÃ©cisÃ©"}`,
@@ -85,7 +139,7 @@ export default async function handler(req, res) {
         if (notionBlocks.length >= 95) break;
       }
 
-      notionPromise = fetch("https://api.notion.com/v1/pages", {
+      const notionRes = await fetchWithRetry("https://api.notion.com/v1/pages", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${process.env.NOTION_API_KEY}`,
@@ -99,25 +153,78 @@ export default async function handler(req, res) {
             "Email": { email: a.email },
             "Dirigeant": { rich_text: [{ type: "text", text: { content: a.responsable_publication || "" } }] },
             "Date de souscription": { date: { start: today } },
-            "Documents livrÃ©s": { checkbox: true },
+            "Documents livrÃ©s": { checkbox: false },
             "Notes": { rich_text: [{ type: "text", text: { content: notesContent } }] },
             ...(a.telephone ? { "TÃ©lÃ©phone": { phone_number: a.telephone } } : {}),
+            ...(a.stripe_session_id ? { "Stripe Session ID": { rich_text: [{ type: "text", text: { content: a.stripe_session_id } }] } } : {}),
           },
           children: notionBlocks,
         }),
-      }).then(async (r) => {
-        // Non-bloquant : une erreur Notion ne doit pas empÃªcher la rÃ©ponse au client, mais on la log toujours en dÃ©tail
-        if (!r.ok) console.error("Notion error â€” rÃ©ponse API:", r.status, await r.text());
-      }).catch((e) => console.error("Notion error â€” exception:", e));
+      }, 1, 800);
+      const notionData = await notionRes.json();
+      notionPageId = notionData.id;
+    } catch (e) {
+      console.error("Notion error â€” sauvegarde initiale (aprÃ¨s tentatives):", e);
     }
-
-    await Promise.all([copyEmailPromise, notionPromise]);
-
-    res.status(200).json({ success: true });
-  } catch (err) {
-    console.error("submit error:", err);
-    res.status(500).json({ error: err.message });
   }
+
+  // â”€â”€ 3. Envoi de l'email client, avec tentatives multiples pour absorber un incident transitoire chez Resend. â”€â”€
+  let emailDelivered = false;
+  try {
+    await fetchWithRetry("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `RGPD Express <${process.env.RESEND_FROM_EMAIL || "contact@rgpd.express"}>`,
+        to: a.email,
+        subject: `âœ… Votre dossier RGPD est prÃªt â€” ${a.raison_sociale || "Votre entreprise"}`,
+        html: buildEmail(a, docs),
+      }),
+    }, 2, 1000);
+    emailDelivered = true;
+  } catch (err) {
+    console.error("submit error â€” envoi email client (aprÃ¨s tentatives):", err);
+  }
+
+  // â”€â”€ 4. Copie interne (alerte explicite si l'email client a Ã©chouÃ©) + mise Ã  jour du statut Notion, en parallÃ¨le. â”€â”€
+  const copyEmailPromise = fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: `RGPD Express <${process.env.RESEND_FROM_EMAIL || "contact@rgpd.express"}>`,
+      to: "contact@rgpd.express",
+      subject: emailDelivered
+        ? `ðŸ“‹ Copie dossier â€” ${a.raison_sociale || "Client"} (${a.secteur || ""}) â€” ${a.email}`
+        : `ðŸš¨ Ã‰CHEC envoi client â€” ${a.raison_sociale || "Client"} â€” ${a.email} â€” dossier gÃ©nÃ©rÃ© et sauvegardÃ©, action manuelle requise pour le transmettre`,
+      html: buildEmail(a, docs),
+    }),
+  }).then(async (r) => {
+    if (!r.ok) console.error("Copie email error â€” rÃ©ponse API:", r.status, await r.text());
+  }).catch((e) => console.error("Copie email error â€” exception:", e));
+
+  let notionUpdatePromise = Promise.resolve();
+  if (notionPageId) {
+    notionUpdatePromise = fetch(`https://api.notion.com/v1/pages/${notionPageId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${process.env.NOTION_API_KEY}`,
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ properties: { "Documents livrÃ©s": { checkbox: emailDelivered } } }),
+    }).then(async (r) => {
+      if (!r.ok) console.error("Notion error â€” mise Ã  jour statut:", r.status, await r.text());
+    }).catch((e) => console.error("Notion error â€” exception mise Ã  jour statut:", e));
+  }
+
+  await Promise.all([copyEmailPromise, notionUpdatePromise]);
+
+  // Le dossier est toujours sauvegardÃ© Ã  ce stade. On le signale au front-end mÃªme si l'email a Ã©chouÃ©,
+  // pour que l'interface puisse afficher un message honnÃªte plutÃ´t qu'une fausse erreur gÃ©nÃ©rique.
+  res.status(200).json({ success: true, emailDelivered });
 }
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -228,18 +335,24 @@ function buildPrompt(a) {
     ? p.subProcessors.map(sp => `  â€¢ ${sp.name} (${sp.country}) â€” ${sp.purpose}`).join("\n")
     : "  â€¢ Aucun sous-traitant identifiÃ© en dehors de l'hÃ©bergeur";
 
-  const documentsToGenerate = [
-    "## 1. REGISTRE DES TRAITEMENTS",
-    "## 2. POLITIQUE DE CONFIDENTIALITÃ‰",
-    "## 3. MENTIONS LÃ‰GALES",
-    "## 4. BANNIÃˆRE DE CONSENTEMENT AUX COOKIES",
-    "## 5. GUIDE D'INTÃ‰GRATION",
-    ...(p.isEquipe || p.hasEmployees ? ["## 6. PROCÃ‰DURE DE GESTION DES DROITS DES PERSONNES"] : []),
-    ...((p.isEquipe || p.hasEmployees) && p.subProcessors.length > 0 ? ["## 7. CLAUSES DE SOUS-TRAITANCE (DPA)"] : []),
-    ...(p.hasEmployees ? ["## 8. NOTICE D'INFORMATION POUR LES COLLABORATEURS"] : []),
-    ...(p.hasSensitiveData && p.isHealthSector ? ["## 9. POLITIQUE SPÃ‰CIFIQUE AUX DONNÃ‰ES DE SANTÃ‰"] : []),
-    ...(p.hasHR ? ["## 10. POLITIQUE DE GESTION DES DONNÃ‰ES RH"] : []),
+  // Titres SANS numÃ©ro : la numÃ©rotation est appliquÃ©e dynamiquement plus bas
+  // pour garantir une sÃ©quence continue (1,2,3...) quel que soit le sous-ensemble
+  // de documents conditionnels rÃ©ellement inclus pour ce client.
+  const documentTitles = [
+    "REGISTRE DES TRAITEMENTS",
+    "POLITIQUE DE CONFIDENTIALITÃ‰",
+    "MENTIONS LÃ‰GALES",
+    "BANNIÃˆRE DE CONSENTEMENT AUX COOKIES",
+    "PROCÃ‰DURE DE GESTION DES VIOLATIONS DE DONNÃ‰ES (Art. 33-34 RGPD)",
+    "GUIDE D'INTÃ‰GRATION",
+    ...(p.isEquipe || p.hasEmployees ? ["PROCÃ‰DURE DE GESTION DES DROITS DES PERSONNES"] : []),
+    ...((p.isEquipe || p.hasEmployees) && p.subProcessors.length > 0 ? ["CLAUSES DE SOUS-TRAITANCE (DPA)"] : []),
+    ...(p.hasEmployees ? ["NOTICE D'INFORMATION POUR LES COLLABORATEURS"] : []),
+    ...(p.hasSensitiveData && p.isHealthSector ? ["POLITIQUE SPÃ‰CIFIQUE AUX DONNÃ‰ES DE SANTÃ‰"] : []),
+    ...(p.hasHR ? ["POLITIQUE DE GESTION DES DONNÃ‰ES RH"] : []),
+    ...(p.isLegal ? ["NOTICE SECRET PROFESSIONNEL & ARTICULATION DÃ‰ONTOLOGIQUE"] : []),
   ];
+  const documentsToGenerate = documentTitles.map((title, i) => `## ${i + 1}. ${title}`);
 
   const sectorSpecific = p.isHealthSector
     ? `OBLIGATIONS SECTORIELLES SPÃ‰CIFIQUES â€” SANTÃ‰ :
@@ -270,6 +383,13 @@ function buildPrompt(a) {
 - Les attestations de prÃ©sence et Ã©valuations sont des donnÃ©es personnelles Ã  conserver
 - Information obligatoire dans le rÃ¨glement intÃ©rieur de l'organisme
 - Les transferts de donnÃ©es vers les OPCO doivent Ãªtre documentÃ©s`
+    : p.isLegal
+    ? `OBLIGATIONS SECTORIELLES SPÃ‰CIFIQUES â€” JURIDIQUE / COMPTABILITÃ‰ / FINANCE :
+- Application du secret professionnel (notamment art. 226-13 du Code pÃ©nal pour les avocats ; dÃ©ontologie de l'Ordre des experts-comptables) qui renforce, au-delÃ  du RGPD, les obligations de confidentialitÃ© sur les correspondances et dossiers clients
+- DurÃ©e de conservation des documents et piÃ¨ces comptables : 10 ans (article L123-22 du Code de commerce)
+- Si la structure est soumise au dispositif de lutte contre le blanchiment et le financement du terrorisme (LCB-FT) : conservation des donnÃ©es d'identification client 5 ans aprÃ¨s la fin de la relation d'affaires
+- Les correspondances couvertes par le secret professionnel (notamment avocat-client) ne doivent pas Ãªtre traitÃ©es comme des donnÃ©es standard et bÃ©nÃ©ficient d'une protection renforcÃ©e
+- Mentionner l'articulation entre les obligations RGPD et les obligations dÃ©ontologiques de l'ordre ou de l'organisme professionnel concernÃ©`
     : "";
 
   const sensitiveDataSection = p.hasSensitiveData
@@ -298,7 +418,7 @@ ${p.subProcessors.filter(sp => sp.country.includes("Ã‰tats-Unis") || sp.count
 
   const legalBasis = a.base_legale || "Multiple selon les traitements";
 
-  return `Tu es un juriste expert en droit de la protection des donnÃ©es, spÃ©cialisÃ© dans l'accompagnement des TPE et PME franÃ§aises. Ta mission est de gÃ©nÃ©rer un dossier de conformitÃ© RGPD COMPLET, PERSONNALISÃ‰ et JURIDIQUEMENT IRRÃ‰PROCHABLE pour l'entreprise suivante.
+  return `Tu es un avocat spÃ©cialisÃ© en droit du numÃ©rique et de la protection des donnÃ©es (RGPD / Loi Informatique et LibertÃ©s), rÃ©digeant pour le compte d'un cabinet spÃ©cialisÃ© Ã  destination d'un client professionnel TPE/PME franÃ§aise. Ta mission est de produire un dossier de conformitÃ© RGPD COMPLET, PERSONNALISÃ‰ et JURIDIQUEMENT IRRÃ‰PROCHABLE, avec le niveau de rigueur, de prÃ©cision et de structure d'un document rÃ©digÃ© par un cabinet d'avocats spÃ©cialisÃ© â€” pas un document gÃ©nÃ©rique de vulgarisation.
 
 â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 PROFIL COMPLET DE L'ENTREPRISE
@@ -369,7 +489,9 @@ INSTRUCTIONS DE RÃ‰DACTION â€” IMPÃ‰RATIVES
 
 3. BASES LÃ‰GALES PRÃ‰CISES : Pour chaque traitement dans le registre, identifie la base lÃ©gale exacte (consentement / contrat / obligation lÃ©gale / intÃ©rÃªt lÃ©gitime / mission d'intÃ©rÃªt public). Justifie ton choix.
 
-4. DURÃ‰ES DE CONSERVATION LÃ‰GALES : Applique les durÃ©es lÃ©gales franÃ§aises :
+4. REGISTRE DES TRAITEMENTS â€” CHAMPS OBLIGATOIRES (Art. 30 RGPD) : Pour CHAQUE traitement listÃ© dans le registre, structure systÃ©matiquement les 8 champs suivants, sans en omettre un seul : (1) identitÃ© et coordonnÃ©es du responsable de traitement, (2) finalitÃ©(s) du traitement, (3) catÃ©gories de personnes concernÃ©es, (4) catÃ©gories de donnÃ©es traitÃ©es, (5) catÃ©gories de destinataires (y compris sous-traitants), (6) transferts hors UE le cas Ã©chÃ©ant et garanties associÃ©es, (7) durÃ©e de conservation, (8) mesures de sÃ©curitÃ© techniques et organisationnelles. Un registre incomplet sur l'un de ces points n'est pas conforme Ã  l'article 30.
+
+5. DURÃ‰ES DE CONSERVATION LÃ‰GALES : Applique les durÃ©es lÃ©gales franÃ§aises :
    - DonnÃ©es clients/prospects : 3 ans aprÃ¨s le dernier contact
    - DonnÃ©es de facturation : 10 ans (obligation comptable, L123-22 Code de commerce)
    - DonnÃ©es RH et salariÃ©s : 5 ans aprÃ¨s la fin du contrat
@@ -378,15 +500,31 @@ INSTRUCTIONS DE RÃ‰DACTION â€” IMPÃ‰RATIVES
    - Cookies de mesure d'audience : 13 mois maximum
    - Logs de connexion/sÃ©curitÃ© : 12 mois
 
-5. DROITS DES PERSONNES : Inclure systÃ©matiquement et avec prÃ©cision : droit d'accÃ¨s (art. 15), rectification (art. 16), effacement (art. 17), limitation (art. 18), portabilitÃ© (art. 20), opposition (art. 21). Inclure la procÃ©dure concrÃ¨te avec l'email de contact.
+6. DROITS DES PERSONNES : Inclure systÃ©matiquement et avec prÃ©cision : droit d'accÃ¨s (art. 15), rectification (art. 16), effacement (art. 17), limitation (art. 18), portabilitÃ© (art. 20), opposition (art. 21), et droit de retrait du consentement Ã  tout moment lorsque le traitement repose sur le consentement (art. 7Â§3 RGPD). Mentionner SYSTÃ‰MATIQUEMENT le droit d'introduire une rÃ©clamation auprÃ¨s de la CNIL (art. 77 RGPD) â€” Commission Nationale de l'Informatique et des LibertÃ©s, 3 Place de Fontenoy, TSA 80715, 75334 Paris Cedex 07, www.cnil.fr â€” dans la politique de confidentialitÃ©. Inclure la procÃ©dure concrÃ¨te d'exercice de ces droits avec l'email de contact du responsable de traitement.
 
-6. SOUS-TRAITANTS : Mentionner CHAQUE sous-traitant identifiÃ© avec pays d'hÃ©bergement et base lÃ©gale du transfert. Pour les USA : mentionner le Data Privacy Framework (dÃ©cision d'adÃ©quation du 10 juillet 2023).
+7. DÃ‰CISION AUTOMATISÃ‰E / PROFILAGE : Si les outils ou finalitÃ©s dÃ©crits impliquent un scoring, une segmentation automatique ou une recommandation personnalisÃ©e pouvant produire des effets significatifs sur les personnes, mentionner le droit de ne pas faire l'objet d'une dÃ©cision fondÃ©e exclusivement sur un traitement automatisÃ© (art. 22 RGPD). Sinon, ne pas mentionner ce point pour ne pas alourdir le document.
 
-7. LANGUE : FranÃ§ais juridique professionnel ET accessible. Pas de jargon inutile. Les TPE doivent pouvoir comprendre et utiliser les documents.
+8. DPO ET ANALYSE D'IMPACT (AIPD) : Si l'entreprise traite des donnÃ©es de santÃ© Ã  grande Ã©chelle, rÃ©alise un suivi systÃ©matique Ã  grande Ã©chelle des personnes, ou traite des catÃ©gories particuliÃ¨res de donnÃ©es (art. 9) Ã  grande Ã©chelle, signale dans le registre des traitements l'obligation potentielle de dÃ©signer un DÃ©lÃ©guÃ© Ã  la Protection des DonnÃ©es (art. 37 RGPD) et de rÃ©aliser une Analyse d'Impact relative Ã  la Protection des DonnÃ©es â€” AIPD (art. 35 RGPD) â€” avec une recommandation claire d'Ã©valuer cette obligation au cas par cas plutÃ´t qu'une affirmation catÃ©gorique.
 
-8. COMPLETUDE : Chaque document doit Ãªtre 100% complet, prÃªt Ã  l'emploi, sans placeholder "[Ã€ COMPLÃ‰TER]". S'il manque une information, utilise une formulation standard conforme et note-le entre parenthÃ¨ses.
+9. SOUS-TRAITANTS : Mentionner CHAQUE sous-traitant identifiÃ© avec pays d'hÃ©bergement et base lÃ©gale du transfert. Pour les USA : mentionner le Data Privacy Framework (dÃ©cision d'adÃ©quation du 10 juillet 2023).
 
-GÃ©nÃ¨re maintenant chaque document demandÃ©, en commenÃ§ant chacun par son titre exact (## 1. REGISTRE DES TRAITEMENTS, etc.).`;
+10. PROCÃ‰DURE DE GESTION DES VIOLATIONS DE DONNÃ‰ES (Art. 33-34 RGPD) : RÃ©dige une procÃ©dure opÃ©rationnelle concrÃ¨te, utilisable immÃ©diatement par le client, couvrant : la dÃ©tection et la qualification d'un incident comme violation de donnÃ©es, le dÃ©lai impÃ©ratif de notification Ã  la CNIL de 72 heures maximum aprÃ¨s en avoir pris connaissance (sauf si la violation n'est pas susceptible d'engendrer un risque pour les personnes), le contenu minimal de la notification (nature de la violation, catÃ©gories et nombre approximatif de personnes/donnÃ©es concernÃ©es, consÃ©quences probables, mesures prises ou envisagÃ©es), les cas oÃ¹ les personnes concernÃ©es doivent elles-mÃªmes Ãªtre informÃ©es directement (risque Ã©levÃ© pour leurs droits et libertÃ©s), et la tenue d'un registre interne des violations mÃªme pour celles non notifiÃ©es Ã  la CNIL. RÃ©fÃ©rence le champ "Violation de donnÃ©es antÃ©rieure" du profil client s'il indique un antÃ©cÃ©dent.
+
+11. MENTIONS LÃ‰GALES â€” RIGUEUR SUR L'IDENTIFICATION DE L'HÃ‰BERGEUR : Le nom de l'hÃ©bergeur fourni par le client est une donnÃ©e fiable, mais PAS son adresse postale complÃ¨te, son numÃ©ro de tÃ©lÃ©phone ou sa forme juridique exacte si ces dÃ©tails ne sont pas fournis. Pour les hÃ©bergeurs trÃ¨s connus et dont l'identification lÃ©gale est stable et publique (OVHcloud, Vercel, Amazon Web Services, Google Cloud, Scaleway, Infomaniak, IONOS, o2switch, Hostinger...), tu peux indiquer leur identification officielle usuelle. Pour tout hÃ©bergeur moins courant ou si un doute existe sur l'exactitude d'une coordonnÃ©e prÃ©cise, N'INVENTE JAMAIS d'adresse ou de numÃ©ro : utilise la formulation "(coordonnÃ©es complÃ¨tes de l'hÃ©bergeur Ã  vÃ©rifier et complÃ©ter par le client)" plutÃ´t que d'affirmer une information non vÃ©rifiÃ©e. Une mention lÃ©gale inexacte est une faute professionnelle plus grave qu'une mention incomplÃ¨te mais honnÃªte.
+
+12. COOKIES â€” RÃ‰FÃ‰RENTIEL CNIL : Pour la banniÃ¨re de consentement aux cookies, applique les lignes directrices et la recommandation CNIL du 17 septembre 2020 (dÃ©libÃ©ration nÂ° 2020-091) : consentement prÃ©alable et libre, granularitÃ© par finalitÃ©, refus aussi simple et accessible que l'acceptation (mÃªme nombre de clics), durÃ©e de conservation du choix de l'utilisateur de 6 mois maximum, et durÃ©e de conservation des cookies de mesure d'audience strictement nÃ©cessaires de 13 mois maximum.
+
+13. LANGUE : FranÃ§ais juridique professionnel ET accessible. Pas de jargon inutile. Les TPE doivent pouvoir comprendre et utiliser les documents.
+
+14. COMPLETUDE : Chaque document doit Ãªtre 100% complet, prÃªt Ã  l'emploi, sans placeholder "[Ã€ COMPLÃ‰TER]". S'il manque une information, utilise une formulation standard conforme et note-le entre parenthÃ¨ses.
+
+15. STRUCTURE PROFESSIONNELLE : Structure les documents Ã  vocation contractuelle ou informative (politique de confidentialitÃ©, mentions lÃ©gales, clauses de sous-traitance, notice collaborateurs) en articles numÃ©rotÃ©s ("Article 1 â€” Objet", "Article 2 â€” DÃ©finitions", etc.), Ã  la maniÃ¨re d'un acte rÃ©digÃ© par un cabinet d'avocats. Le registre des traitements, la procÃ©dure de gestion des violations et le guide d'intÃ©gration peuvent rester sous forme de tableaux/listes structurÃ©es, plus adaptÃ©s Ã  un usage opÃ©rationnel quotidien.
+
+16. FORMAT STRICT â€” TRÃˆS IMPORTANT : Ne gÃ©nÃ¨re AUCUN texte avant le premier titre. N'ajoute AUCUNE section d'introduction, de prÃ©sentation gÃ©nÃ©rale, de prÃ©ambule ou de note prÃ©liminaire qui ne figure pas dans la liste "DOCUMENTS Ã€ GÃ‰NÃ‰RER" ci-dessus. RÃ©utilise le titre EXACT de chaque document tel qu'indiquÃ© dans cette liste (mÃªme texte aprÃ¨s le numÃ©ro), sans le reformuler. Le tout premier caractÃ¨re de ta rÃ©ponse doit Ãªtre "## 1.".
+
+17. SOBRIÃ‰TÃ‰ : Reste concis et opÃ©rationnel sur chaque document (pas de rÃ©pÃ©titions entre documents, pas de tableaux Ã  rallonge). L'objectif est que les ${documentsToGenerate.length} documents complets tiennent dans la rÃ©ponse â€” mieux vaut un document lÃ©gÃ¨rement plus court mais terminÃ© qu'un document long mais coupÃ©.
+
+GÃ©nÃ¨re maintenant chaque document demandÃ©, dans l'ordre, en commenÃ§ant chacun par son titre exact (## 1. REGISTRE DES TRAITEMENTS, etc.). N'Ã©cris rien d'autre avant le "## 1.".`;
 }
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -395,7 +533,24 @@ GÃ©nÃ¨re maintenant chaque document demandÃ©, en commenÃ§ant chacun par 
 
 function buildEmail(a, docs) {
   const sections = parseSections(docs);
-  const docIcons = { 1: "ðŸ“‹", 2: "ðŸ“„", 3: "âš–ï¸", 4: "ðŸª", 5: "ðŸ“", 6: "ðŸ””", 7: "ðŸ“ƒ", 8: "ðŸ‘¥", 9: "ðŸ¥", 10: "ðŸ’¼" };
+  // IcÃ´ne dÃ©terminÃ©e par mot-clÃ© du titre (et non par position) : reste correcte
+  // quel que soit le sous-ensemble de documents conditionnels inclus pour ce client,
+  // et quel que soit leur ordre â€” contrairement Ã  un mappage par index fixe.
+  const iconRules = [
+    [/REGISTRE DES TRAITEMENTS/i, "ðŸ“‹"],
+    [/POLITIQUE DE CONFIDENTIALITÃ‰/i, "ðŸ“„"],
+    [/MENTIONS LÃ‰GALES/i, "âš–ï¸"],
+    [/COOKIES/i, "ðŸª"],
+    [/VIOLATIONS DE DONNÃ‰ES/i, "ðŸš¨"],
+    [/GUIDE D'INTÃ‰GRATION/i, "ðŸ“"],
+    [/DROITS DES PERSONNES/i, "ðŸ””"],
+    [/SOUS-TRAITANCE/i, "ðŸ“ƒ"],
+    [/COLLABORATEURS/i, "ðŸ‘¥"],
+    [/DONNÃ‰ES DE SANTÃ‰/i, "ðŸ¥"],
+    [/DONNÃ‰ES RH/i, "ðŸ’¼"],
+    [/SECRET PROFESSIONNEL/i, "âš–ï¸"],
+  ];
+  const iconFor = (title) => (iconRules.find(([re]) => re.test(title)) || [, "ðŸ“„"])[1];
 
   const generationDate = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
   const monthYear = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
@@ -410,7 +565,7 @@ function buildEmail(a, docs) {
     <div style="margin-top:28px;padding-top:28px;border-top:2px solid #f1f5f9">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:6px">
         <h2 style="margin:0;font-size:15px;font-weight:700;color:#0f172a">
-          <span style="font-size:18px">${docIcons[i + 1] || "ðŸ“„"}</span> ${s.title}
+          <span style="font-size:18px">${iconFor(s.title)}</span> ${s.title}
         </h2>
         <span style="font-size:10px;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:20px;padding:3px 10px;font-weight:600;white-space:nowrap">Licence active requise Â· ${monthYear}</span>
       </div>
@@ -418,7 +573,7 @@ function buildEmail(a, docs) {
       <div style="margin-top:8px;font-size:10px;color:#94a3b8;font-style:italic;text-align:right">RGPD Express Â· GÃ©nÃ©rÃ© le ${generationDate} Â· Licence rÃ©vocable â€” art. 9 CGV</div>
     </div>`).join("");
 
-  const docList = sections.map((s, i) => `<li>${docIcons[i + 1] || "ðŸ“„"} ${s.title}</li>`).join("");
+  const docList = sections.map((s) => `<li>${iconFor(s.title)} ${s.title}</li>`).join("");
 
   return `<!DOCTYPE html>
 <html lang="fr">
