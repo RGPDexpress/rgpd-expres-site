@@ -97,7 +97,7 @@ const QUESTIONS = [
       { label: "Ce type de demande existe ?", sc: 0, risk: "critical", tip: "Oui, et leur nombre ne cesse de croître. Les plaintes auprès de la CNIL ont augmenté de 30 % en 2025." },
     ]},
 ];
-const MAX_SC = 22;
+const MAX_SC = 23; // = somme des scores max atteignables par question (2+3+3+3+3+3+3+3) ; ne pas désynchroniser si QUESTIONS change
 
 // Témoignages réels à ajouter dès réception des premiers avis clients Google
 
@@ -218,17 +218,22 @@ export default function App() {
   const [submitted, setSubmitted] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [fromPayment, setFromPayment] = useState(false);
+  const [stripeSessionId, setStripeSessionId] = useState("");
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", h); return () => window.removeEventListener("scroll", h);
   }, []);
 
-  // Détection URL ?questionnaire pour redirection depuis Stripe
+  // Détection URL ?questionnaire pour redirection depuis Stripe.
+  // session_id est ajouté automatiquement par Stripe sur l'URL de succès du Payment Link
+  // (configuré côté Stripe : .../?questionnaire&session_id={CHECKOUT_SESSION_ID}) et sert
+  // de preuve de paiement, vérifiée côté serveur dans /api/submit avant toute génération.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.has("questionnaire")) {
       setFromPayment(true);
+      setStripeSessionId(p.get("session_id") || "");
       setView("questionnaire"); setClientQi(0); setClientAns({});
       try { sessionStorage.removeItem("rgpd_progress"); } catch {}
       window.scrollTo(0, 0);
@@ -241,12 +246,17 @@ export default function App() {
       const r = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(finalAns),
+        body: JSON.stringify({ ...finalAns, stripe_session_id: stripeSessionId }),
       });
       if (!r.ok) {
         let errDetail = "Erreur serveur";
         try { const body = await r.json(); errDetail = body.error || errDetail; } catch {}
         console.error("[RGPD Express] Erreur API submit:", r.status, errDetail);
+        if (r.status === 402) {
+          alert("Nous n'avons pas pu vérifier votre paiement. Si vous venez de payer, merci de nous contacter directement au 07 69 46 93 76 ou contact@rgpd.express en précisant votre email de paiement — nous générerons votre dossier manuellement.");
+          setSubmitting(false);
+          return;
+        }
         throw new Error(errDetail);
       }
       setSubmitting(false); setSubmitted(true); window.scrollTo(0, 0);
@@ -615,7 +625,7 @@ export default function App() {
         <div style={{ width: 52, height: 52, borderRadius: "50%", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", animation: "spin 0.85s linear infinite", marginBottom: 28 }} />
         <Logo />
         <h3 style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: "#0f172a", margin: "18px 0 8px" }}>Génération de votre dossier…</h3>
-        <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.7, margin: 0 }}>Vos documents sont en cours de création par notre IA juridique.<br />Cela prend environ 60 secondes.</p>
+        <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.7, margin: 0 }}>Vos documents sont en cours de création par notre IA juridique.<br />Cela peut prendre jusqu'à 3 minutes pour les dossiers les plus complets — merci de ne pas fermer ni rafraîchir cette page.</p>
       </div>
     );
 
@@ -1272,18 +1282,32 @@ export default function App() {
       <section id="temoignages" style={{ padding: "60px 24px 70px", background: "#fafbfc" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <Fade>
-            <div style={{ textAlign: "center", marginBottom: 36 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.15em" }}>Avis clients</span>
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.15em" }}>Pourquoi RGPD Express</span>
               <h2 style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: "#0f172a", margin: "10px 0" }}>
-                Soyez parmi les <em style={{ fontStyle: "italic", color: "#2563eb" }}>premiers clients.</em>
+                Trois raisons de <em style={{ fontStyle: "italic", color: "#2563eb" }}>nous faire confiance.</em>
               </h2>
               <p style={{ fontSize: 14, color: "#64748b", maxWidth: 480, margin: "0 auto", lineHeight: 1.7 }}>
-                RGPD Express vient de lancer. Nous accompagnons nos premiers clients avec une attention personnalisée exceptionnelle. Votre avis comptera.
+                Une conformité RGPD rapide, fiable et accessible — pensée pour les TPE et indépendants.
               </p>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 16, marginBottom: 8 }}>
+              <div style={{ flex: "1 1 220px", maxWidth: 260, background: "#fff", borderRadius: 16, border: "1.5px solid #e2e8f0", padding: "24px 20px", textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>⚡</div>
+                <p style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>Dossier prêt en quelques minutes</p>
+              </div>
+              <div style={{ flex: "1 1 220px", maxWidth: 260, background: "#fff", borderRadius: 16, border: "1.5px solid #e2e8f0", padding: "24px 20px", textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>⚖️</div>
+                <p style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>Rédigé selon le droit français en vigueur</p>
+              </div>
+              <div style={{ flex: "1 1 220px", maxWidth: 260, background: "#fff", borderRadius: 16, border: "1.5px solid #e2e8f0", padding: "24px 20px", textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>💶</div>
+                <p style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>Dès 29€/mois, sans engagement</p>
+              </div>
             </div>
           </Fade>
           <Fade delay={0.2}>
-            <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center", padding: "40px 32px", background: "#fff", borderRadius: 20, border: "1.5px solid #e2e8f0", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
+            <div style={{ maxWidth: 560, margin: "40px auto 0", textAlign: "center", padding: "40px 32px", background: "#fff", borderRadius: 20, border: "1.5px solid #e2e8f0", boxShadow: "0 4px 24px rgba(0,0,0,0.04)" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
               <h3 style={{ fontFamily: FH, fontSize: 20, fontWeight: 700, color: "#0f172a", margin: "0 0 10px" }}>Vous êtes déjà client RGPD Express ?</h3>
               <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.7, marginBottom: 22 }}>
@@ -1369,7 +1393,7 @@ export default function App() {
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>Ressources</div>
                 {[["Audit gratuit", startAudit], ["Fonctionnalités", () => {}], ["Tarifs", () => {}], ["FAQ", () => {}]].map(([l, fn], idx) => (
-                  <div key={l} onClick={idx === 0 ? fn : undefined} style={{ fontSize: 12, color: "#64748b", marginBottom: 4, cursor: idx === 0 ? "pointer" : "default" }}><a href={idx > 0 ? `#${l.toLowerCase()}` : undefined} style={{ color: "#64748b", textDecoration: "none" }} onClick={idx === 0 ? (e) => { e.preventDefault(); fn(); } : undefined}>{l}</a></div>
+                  <div key={l} onClick={idx === 0 ? fn : undefined} style={{ fontSize: 12, color: "#64748b", marginBottom: 4, cursor: idx === 0 ? "pointer" : "default" }}><a href={idx > 0 ? `#${l.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}` : undefined} style={{ color: "#64748b", textDecoration: "none" }} onClick={idx === 0 ? (e) => { e.preventDefault(); fn(); } : undefined}>{l}</a></div>
                 ))}
               </div>
               <div>
