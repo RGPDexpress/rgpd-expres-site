@@ -101,9 +101,84 @@ const MAX_SC = 23; // = somme des scores max atteignables par question (2+3+3+3+
 
 // Témoignages réels à ajouter dès réception des premiers avis clients Google
 
+// ─── CATALOGUE OUTILS (searchable tool picker) ────────────────────────────
+// Tous les sous-traitants RGPD courants, regroupés par catégorie.
+// Synchronisé avec analyzeProfile() dans submit.js — ajouter ici = ajouter là-bas.
+const TOOL_CATALOGUE = [
+  { cat: "📨 Emailing & contacts", tools: ["Mailchimp", "Brevo (ex-Sendinblue)", "Klaviyo", "HubSpot", "ActiveCampaign", "Mailjet", "Zoho Mail", "Google Workspace (Gmail pro)"] },
+  { cat: "📅 RDV & CRM", tools: ["Calendly", "Doctolib", "Clicrdv / Veary", "Zoho CRM", "Salesforce", "Pipedrive", "Monday.com", "Notion (base clients)", "Airtable"] },
+  { cat: "💳 Paiement", tools: ["Stripe", "PayPal", "SumUp", "Square"] },
+  { cat: "📊 Analytics & Publicité", tools: ["Google Analytics / GA4", "Meta Pixel / Facebook Ads", "Google Ads / Tag Manager", "Matomo (analytics)", "Hotjar / Clarity"] },
+  { cat: "📹 Visio & Collaboration", tools: ["Zoom", "Microsoft Teams", "Google Meet"] },
+  { cat: "🌐 CMS & E-commerce", tools: ["WordPress", "Shopify"] },
+];
+
+function ToolPicker({ value, onChange }) {
+  const [search, setSearch] = useState("");
+  const selected = Array.isArray(value) ? value : [];
+  const isNoneSelected = selected.includes("Aucun outil de sous-traitance");
+
+  const toggle = (tool) => {
+    if (tool === "Aucun outil de sous-traitance") {
+      onChange(isNoneSelected ? [] : ["Aucun outil de sous-traitance"]);
+      return;
+    }
+    const withoutNone = selected.filter(t => t !== "Aucun outil de sous-traitance");
+    if (withoutNone.includes(tool)) onChange(withoutNone.filter(t => t !== tool));
+    else onChange([...withoutNone, tool]);
+  };
+
+  const q = search.trim().toLowerCase();
+  const filtered = q.length === 0
+    ? TOOL_CATALOGUE
+    : TOOL_CATALOGUE.map(({ cat, tools }) => ({ cat, tools: tools.filter(t => t.toLowerCase().includes(q)) })).filter(g => g.tools.length > 0);
+
+  return (
+    <div>
+      {/* Sélection en cours */}
+      {selected.length > 0 && !isNoneSelected && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12, padding: "10px 14px", background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0" }}>
+          <span style={{ fontSize: 11, color: "#166534", fontWeight: 700, width: "100%", marginBottom: 3 }}>✓ {selected.length} outil{selected.length > 1 ? "s" : ""} sélectionné{selected.length > 1 ? "s" : ""} — cliquer pour retirer</span>
+          {selected.map(t => (
+            <div key={t} onClick={() => toggle(t)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 11px", background: "#fff", border: "1.5px solid #16a34a", borderRadius: 20, fontSize: 12, color: "#166534", cursor: "pointer", fontWeight: 600 }}>
+              {t} <span style={{ fontSize: 14, lineHeight: 1, opacity: 0.7 }}>×</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Barre de recherche */}
+      <input className="qi" type="text" placeholder="🔍 Rechercher un outil… (Stripe, Mailchimp, Doctolib…)" value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: 10 }} />
+      {/* Grille par catégorie */}
+      <div style={{ maxHeight: 290, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 14px" }}>
+        {filtered.length === 0 ? (
+          <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: "16px 0" }}>Aucun outil trouvé — utilisez la question suivante pour les outils non listés.</p>
+        ) : filtered.map(({ cat, tools }) => (
+          <div key={cat} style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>{cat}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {tools.map(tool => {
+                const sel = selected.includes(tool);
+                return (
+                  <div key={tool} onClick={() => toggle(tool)} style={{ padding: "7px 13px", borderRadius: 20, fontSize: 13, cursor: "pointer", userSelect: "none", transition: "all .12s", background: sel ? "#eff6ff" : "#f8fafc", border: `1.5px solid ${sel ? "#2563eb" : "#e2e8f0"}`, color: sel ? "#1d4ed8" : "#334155", fontWeight: sel ? 700 : 400 }}>
+                    {sel ? "✓ " : ""}{tool}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Option "Aucun outil" */}
+      <div onClick={() => toggle("Aucun outil de sous-traitance")} style={{ marginTop: 10, padding: "11px 14px", textAlign: "center", cursor: "pointer", userSelect: "none", transition: "all .12s", background: isNoneSelected ? "#eff6ff" : "#fff", border: `1.5px solid ${isNoneSelected ? "#2563eb" : "#e2e8f0"}`, borderRadius: 10, fontSize: 13, color: isNoneSelected ? "#1d4ed8" : "#64748b", fontWeight: isNoneSelected ? 700 : 400 }}>
+        {isNoneSelected ? "✓ " : ""}Je n'utilise aucun de ces outils
+      </div>
+    </div>
+  );
+}
+
 // ─── QUESTIONS QUESTIONNAIRE CLIENT ───────────────────────────────────────
-// 29 questions en 6 blocs — détermine l'offre, les documents et leur contenu
-// Types : email | text | textarea | select | checkbox | radio
+// 28 à 29 questions en 6 blocs — détermine l'offre, les documents et leur contenu
+// Types : email | text | textarea | select | checkbox | radio | tool-picker
 
 const CLIENT_QUESTIONS = [
   // ══ BLOC 1 : PROFIL ENTREPRISE (5 q.) ═══════════════════════════════════
@@ -132,8 +207,7 @@ const CLIENT_QUESTIONS = [
   { id:"site_web_url", bloc:4, blocTitle:"Site web & Outils", icon:"🔗", q:"Quelle est l'adresse de votre site web ?", sub:"Copiez-collez l'URL exacte de votre site.", type:"text", placeholder:"Ex : https://www.mon-entreprise.fr", skipIf:(ans) => ans.site_web === "Je n'ai pas de site web" },
   { id:"cms", bloc:4, blocTitle:"Site web & Outils", icon:"🖥️", q:"Sur quelle technologie votre site est-il construit ?", sub:"Cela nous permet d'adapter le guide d'intégration à votre situation exacte.", type:"select", options:["WordPress (avec ou sans WooCommerce)","Shopify","Wix","Squarespace","Webflow","PrestaShop","Site développé sur mesure (React, Vue, PHP…)","Je ne sais pas"], skipIf:(ans) => ans.site_web === "Je n'ai pas de site web" },
   { id:"hebergeur", bloc:4, blocTitle:"Site web & Outils", icon:"🖧", q:"Qui héberge votre site web ?", sub:"Informations obligatoires dans les mentions légales : nom, adresse et téléphone de l'hébergeur.", type:"text", placeholder:"Ex : OVHcloud, Vercel, Netlify, 1&1 IONOS, O2Switch, Infomaniak… ou Je ne sais pas", skipIf:(ans) => ans.site_web === "Je n'ai pas de site web" },
-  { id:"outils_emailing", bloc:4, blocTitle:"Site web & Outils", icon:"📨", q:"Quels outils utilisez-vous pour l'emailing ou la gestion de vos contacts ?", sub:"Ces outils sont des sous-traitants RGPD — ils doivent figurer dans vos documents.", type:"checkbox", options:["Mailchimp","Brevo (ex-Sendinblue)","Klaviyo","HubSpot","ActiveCampaign","Mailjet","Zoho Mail","Google Workspace (Gmail pro)","Je gère mes emails manuellement (sans outil dédié)","Aucun outil d'emailing"] },
-  { id:"outils_paiement_analytics", bloc:4, blocTitle:"Site web & Outils", icon:"💳", q:"Quels outils de paiement et d'analyse utilisez-vous ?", sub:"Cochez tout ce qui s'applique — chaque outil traite des données de vos clients.", type:"checkbox", options:["Stripe","PayPal","SumUp","Square","Google Analytics / GA4","Meta Pixel / Facebook Ads","Google Ads / Tag Manager","Matomo (analytics)","Hotjar ou Clarity","Autre outil analytics","Aucun outil de paiement en ligne","Aucun outil analytics"] },
+  { id:"outils_sous_traitants", bloc:4, blocTitle:"Site web & Outils", icon:"🔧", q:"Quels outils numériques utilisez-vous dans votre activité ?", sub:"Ces outils sont des sous-traitants RGPD — ils doivent figurer dans vos documents. Cliquez pour les sélectionner ou recherchez via la barre.", type:"tool-picker" },
   { id:"outils_metier", bloc:4, blocTitle:"Site web & Outils", icon:"🔧", q:"Utilisez-vous d'autres logiciels professionnels qui traitent des données clients ?", sub:"CRM, logiciel de facturation, agenda en ligne, outil de visioconférence, ERP…", type:"textarea", placeholder:"Ex : Notion (CRM), Calendly (réservation), Zoom, QuickBooks (facturation), Doctolib (rdv)… ou Aucun autre outil" },
 
   // ══ BLOC 5 : SÉCURITÉ & COLLABORATEURS (4 q.) ════════════════════════════
@@ -310,7 +384,7 @@ export default function App() {
       <LP>Le site peut contenir des liens hypertextes vers d'autres sites. RGPD Express décline toute responsabilité quant au contenu de ces sites externes, l'activation de ces liens relevant de la pleine responsabilité de l'utilisateur.</LP>
       <LH>Droit applicable</LH>
       <LP>Les présentes mentions légales sont régies par le droit français. En cas de litige, les tribunaux français seront seuls compétents.</LP>
-      <LP style={{ marginTop: 28, color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>Dernière mise à jour : avril 2026</LP>
+      <LP style={{ marginTop: 28, color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>Dernière mise à jour : juillet 2026</LP>
     </LegalPage>
   );
 
@@ -320,18 +394,18 @@ export default function App() {
       <LP>La présente politique de confidentialité définit et informe les utilisateurs du site www.rgpd.express de la manière dont RGPD Express collecte, utilise et protège les données à caractère personnel, conformément au Règlement (UE) 2016/679 du 27 avril 2016 (RGPD) et à la loi n° 78-17 du 6 janvier 1978 modifiée relative à l'informatique, aux fichiers et aux libertés.</LP>
 
       <LH>1. Responsable du traitement</LH>
-      <LP>Le responsable du traitement des données collectées sur le site est :<br/><strong>RGPD Express — Louca Foughali</strong><br/>Adresse électronique : contact@rgpd.express<br/>Téléphone : 07 69 46 93 76</LP>
+      <LP>Le responsable du traitement des données collectées sur le site est :<br/><strong>RGPD Express — Louca Foughali</strong><br/>Micro-entreprise — SIRET : 104 336 607 00015<br/>Adresse électronique : contact@rgpd.express<br/>Téléphone : 07 69 46 93 76</LP>
 
       <LH>2. Données collectées</LH>
       <LP>Dans le cadre de son activité, RGPD Express est susceptible de collecter les catégories de données suivantes :</LP>
       <LP><strong>Données de contact :</strong> nom, prénom, adresse électronique, numéro de téléphone — collectées via le formulaire de contact ou par échange direct (e-mail, téléphone).</LP>
       <LP><strong>Données liées à l'audit rapide (8 questions) :</strong> les réponses au questionnaire d'audit de conformité proposé gratuitement sur le site sont calculées localement dans votre navigateur. Elles ne sont ni transmises, ni stockées sur nos serveurs.</LP>
-      <LP><strong>Données liées au questionnaire client complet (29 questions) :</strong> les réponses au questionnaire de conformité rempli après souscription sont transmises de manière sécurisée à notre serveur dans le but exclusif de générer votre dossier RGPD personnalisé. Ces données sont utilisées uniquement pour la génération des documents et ne sont pas conservées sur nos serveurs au-delà du traitement. Base légale : exécution du contrat (article 6.1.b du RGPD).</LP>
+      <LP><strong>Données liées au questionnaire client complet :</strong> les réponses au questionnaire de conformité rempli après souscription (nom de l'entreprise, secteur d'activité, coordonnées du dirigeant, informations sur les traitements de données pratiqués) sont transmises de manière sécurisée à notre serveur afin de générer votre dossier RGPD personnalisé. Ces données sont ensuite archivées dans notre base de données clients (Notion) aux fins de suivi de la relation client, de mise à jour des documents et de prévention de la réutilisation frauduleuse d'un paiement. L'identifiant de session de paiement Stripe (stripe_session_id) est également conservé à cette dernière fin. Base légale : exécution du contrat (article 6.1.b du RGPD) et intérêt légitime (article 6.1.f du RGPD) pour la prévention de la fraude.</LP>
       <LP><strong>Données de navigation :</strong> le site n'utilise aucun outil de mesure d'audience ni cookie de traçage. Seuls des cookies strictement nécessaires au fonctionnement du service de paiement (Stripe) sont utilisés.</LP>
 
       <LH>3. Finalités et bases légales</LH>
       <LP>Les données collectées sont utilisées aux fins suivantes :</LP>
-      <LP>• <strong>Gestion des demandes de contact et de devis</strong> — Base légale : mesures précontractuelles (article 6.1.b du RGPD).<br/>• <strong>Suivi de la relation client et envoi des documents de conformité</strong> — Base légale : exécution du contrat (article 6.1.b du RGPD).<br/>• <strong>Mesure d'audience du site</strong> — Base légale : intérêt légitime (article 6.1.f du RGPD) ou consentement selon l'outil utilisé.</LP>
+      <LP>• <strong>Gestion des demandes de contact et de devis</strong> — Base légale : mesures précontractuelles (article 6.1.b du RGPD).<br/>• <strong>Suivi de la relation client et envoi des documents de conformité</strong> — Base légale : exécution du contrat (article 6.1.b du RGPD).<br/>• <strong>Prévention de la fraude et contrôle anti-réutilisation des paiements</strong> — Base légale : intérêt légitime (article 6.1.f du RGPD).<br/>• <strong>Archivage des dossiers générés</strong> — Base légale : obligations comptables et fiscales (article 6.1.c du RGPD), durée de 10 ans.</LP>
 
       <LH>4. Destinataires des données</LH>
       <LP>Les données collectées sont destinées exclusivement à RGPD Express. Elles ne sont en aucun cas cédées, vendues ou louées à des tiers.</LP>
@@ -356,11 +430,13 @@ export default function App() {
       <LP>RGPD Express met en œuvre les mesures techniques et organisationnelles appropriées pour protéger les données personnelles contre tout accès non autorisé, toute perte, toute altération ou toute divulgation, notamment : chiffrement des communications (protocole HTTPS/TLS), hébergement sur une infrastructure sécurisée conforme au Data Privacy Framework, accès restreint aux données par authentification sécurisée.</LP>
 
       <LH>9. Transferts hors Union européenne</LH>
-      <LP>Dans le cadre de l'hébergement du site, certaines données techniques peuvent être traitées par notre prestataire d'infrastructure (Vercel Inc., États-Unis), certifié au titre du EU-US Data Privacy Framework. Ce cadre garantit un niveau de protection des données équivalent à celui de l'Union européenne, conformément à la décision d'adéquation de la Commission européenne du 10 juillet 2023. Les données relatives à l'audit de conformité sont traitées exclusivement dans votre navigateur et ne font l'objet d'aucun transfert.</LP>
+      <LP>Dans le cadre de la fourniture de ses services, RGPD Express fait appel à plusieurs prestataires établis aux États-Unis. Ces transferts sont encadrés par le EU-US Data Privacy Framework, adopté par décision d'adéquation de la Commission européenne du 10 juillet 2023, qui garantit un niveau de protection équivalent à celui de l'Union européenne. Les prestataires concernés et leurs certifications sont les suivants :</LP>
+      <LP>• <strong>Vercel Inc.</strong> (hébergement du site) — certifié Data Privacy Framework<br/>• <strong>Resend Inc.</strong> (envoi des dossiers par e-mail) — certifié Data Privacy Framework<br/>• <strong>Stripe Inc.</strong> (traitement des paiements) — certifié Data Privacy Framework<br/>• <strong>Anthropic PBC</strong> (génération des documents par intelligence artificielle) — certifié Data Privacy Framework<br/>• <strong>Notion Labs, Inc.</strong> (archivage des dossiers clients et CRM) — certifié Data Privacy Framework</LP>
+      <LP>Les données relatives à l'audit rapide gratuit (8 questions) sont traitées exclusivement dans votre navigateur et ne font l'objet d'aucun transfert.</LP>
 
       <LH>10. Modification de la politique</LH>
       <LP>La présente politique de confidentialité peut être modifiée à tout moment afin de tenir compte des évolutions réglementaires ou des changements apportés au fonctionnement du site. La date de dernière mise à jour est indiquée ci-dessous.</LP>
-      <LP style={{ marginTop: 28, color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>Dernière mise à jour : avril 2026</LP>
+      <LP style={{ marginTop: 28, color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>Dernière mise à jour : juillet 2026</LP>
     </LegalPage>
   );
 
@@ -415,7 +491,7 @@ export default function App() {
 
       <LH>13. Droit applicable et juridiction compétente</LH>
       <LP>Les présentes CGV sont régies par le droit français. En cas de litige, les parties s'efforceront de trouver une solution amiable. À défaut, les tribunaux compétents seront ceux du ressort du siège social de RGPD Express.</LP>
-      <LP style={{ marginTop: 28, color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>Dernière mise à jour : avril 2026</LP>
+      <LP style={{ marginTop: 28, color: "#94a3b8", fontSize: 12, fontStyle: "italic" }}>Dernière mise à jour : juillet 2026</LP>
     </LegalPage>
   );
 
@@ -580,7 +656,8 @@ export default function App() {
     const prog = Math.round(((clientQi + 1) / allQ.length) * 100);
     const isCheckbox = q.type === "checkbox";
     const isRadio = q.type === "radio";
-    const currentVal = clientAns[q.id] !== undefined ? clientAns[q.id] : (isCheckbox ? [] : "");
+    const isToolPicker = q.type === "tool-picker";
+    const currentVal = clientAns[q.id] !== undefined ? clientAns[q.id] : (isCheckbox || isToolPicker ? [] : "");
     const isLast = clientQi === allQ.length - 1;
     // Le badge offre apparaît à partir de la question 7 (après le bloc 1 complet)
 
@@ -588,7 +665,7 @@ export default function App() {
     const isValidEmail = q.type === "email"
       ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentVal)
       : true;
-    const canNext = isCheckbox
+    const canNext = (isCheckbox || isToolPicker)
       ? (Array.isArray(currentVal) && currentVal.length > 0)
       : (typeof currentVal === "string" ? currentVal.trim().length > 0 && isValidEmail : currentVal !== "");
 
@@ -795,6 +872,14 @@ export default function App() {
               </div>
             )}
 
+            {/* ── TOOL PICKER ── */}
+            {isToolPicker && (
+              <ToolPicker
+                value={currentVal}
+                onChange={(val) => setClientAns({ ...clientAns, [q.id]: val })}
+              />
+            )}
+
             {/* ── RADIO ── */}
             {isRadio && (
               <div>
@@ -842,7 +927,7 @@ export default function App() {
             <button className="btn-main" disabled={!canNext || (isLast && !consentChecked)} onClick={nextQ}>
               {isLast ? "Générer mon dossier de conformité →" : "Continuer →"}
             </button>
-            {isCheckbox && !canNext && <p style={{ fontSize: 11, color: "#f59e0b", textAlign: "center", marginTop: 8 }}>Sélectionnez au moins une option</p>}
+            {(isCheckbox || isToolPicker) && !canNext && <p style={{ fontSize: 11, color: "#f59e0b", textAlign: "center", marginTop: 8 }}>Sélectionnez au moins une option</p>}
             {clientQi > 0 && <button className="btn-back" onClick={prevQ}>← Question précédente</button>}
           </div>
           <p style={{ textAlign: "center", fontSize: 11, color: "#cbd5e1", marginTop: 32 }}>
