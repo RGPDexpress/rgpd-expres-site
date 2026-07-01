@@ -95,7 +95,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 10500,
+        max_tokens: 16000,
         messages: [{ role: "user", content: buildPrompt(a) }],
       }),
     });
@@ -232,9 +232,15 @@ export default async function handler(req, res) {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function analyzeProfile(a) {
-  const hasSensitiveData = a.donnees_sensibles &&
-    !a.donnees_sensibles.includes("Aucune donnÃ©e") &&
-    a.donnees_sensibles.length > 0;
+  // â”€â”€ Helpers â”€â”€
+  // donnees_sensibles et finalites sont des tableaux checkbox â€” utiliser .some() avec substring, PAS .includes() sur array
+  // (array.includes("x") = Ã©galitÃ© stricte avec un Ã©lÃ©ment ; ne matche jamais les options qui sont des phrases complÃ¨tes)
+  const sensArr = Array.isArray(a.donnees_sensibles) ? a.donnees_sensibles : (a.donnees_sensibles ? [a.donnees_sensibles] : []);
+  const finalitesArr = Array.isArray(a.finalites) ? a.finalites : (a.finalites ? [a.finalites] : []);
+
+  // BUGFIX : l'option rÃ©elle est "Aucune donnÃ©e de ces catÃ©gories" ; array.includes("Aucune donnÃ©e") = false toujours
+  // â†’ hasSensitiveData Ã©tait true mÃªme quand l'utilisateur avait cochÃ© "Aucune" â†’ section donnÃ©es sensibles inutile
+  const hasSensitiveData = sensArr.length > 0 && !sensArr.some(s => s.startsWith("Aucune"));
 
   const hasEmployees = a.collaborateurs_acces &&
     (a.collaborateurs_acces.includes("salariÃ©s") || a.collaborateurs_acces.includes("prestataires"));
@@ -259,19 +265,21 @@ function analyzeProfile(a) {
     a.secteur.includes("Finances")
   );
 
-  const hasMinors = a.donnees_sensibles && a.donnees_sensibles.includes("mineurs");
+  // BUGFIX : option rÃ©elle = "DonnÃ©es concernant des mineurs (moins de 18 ans)" â€” .some() pour match partiel
+  const hasMinors = sensArr.some(s => s.includes("mineur"));
 
-  const hasInternationalTransfers = a.transferts_hors_ue &&
-    !a.transferts_hors_ue.includes("UE");
+  // BUGFIX : "Oui, j'utilise des outils amÃ©ricains ou hors UE" contient "UE" â†’ !includes("UE") = false â†’ bug critique
+  // Correctif : startsWith("Non") identifie uniquement "Non, tous mes outils sont hÃ©bergÃ©s dans l'UE"
+  const hasInternationalTransfers = a.transferts_hors_ue && !a.transferts_hors_ue.startsWith("Non");
 
-  const hasMarketing = a.finalites && (
-    a.finalites.includes("newsletter") || a.finalites.includes("marketing") || a.finalites.includes("Prospection")
+  // BUGFIX : finalites est un tableau â€” les options sont des phrases complÃ¨tes ("Envoi de newsletters ou communications marketing")
+  // array.includes("newsletter") cherche un Ã©lÃ©ment Ã‰GAL Ã  "newsletter" â†’ jamais trouvÃ©
+  const hasMarketing = finalitesArr.some(s =>
+    s.includes("newsletter") || s.includes("marketing") || s.includes("Prospection")
   );
 
-  const hasHR = a.finalites && (
-    a.finalites.includes("ressources humaines") ||
-    a.finalites.includes("Recrutement") ||
-    a.finalites.includes("paie")
+  const hasHR = finalitesArr.some(s =>
+    s.includes("ressources humaines") || s.includes("paie") || s.includes("Recrutement")
   );
 
   const isSmall = !a.effectif ||
@@ -285,18 +293,43 @@ function analyzeProfile(a) {
 
   // Identify sub-processors from tools
   const subProcessors = [];
+
+  // HÃ©bergeur : premier sous-traitant Ã  identifier (Art. 28 RGPD â€” hÃ©bergement = traitement de donnÃ©es)
+  const hebergeurRaw = (a.hebergeur || "").trim();
+  if (hebergeurRaw && !hebergeurRaw.toLowerCase().includes("ne sais pas") && hebergeurRaw.length > 2) {
+    const hebergeurName = hebergeurRaw.split(",")[0].trim();
+    const hebergeurCountry =
+      /ovh|o2switch|infomaniak|scaleway|gandi|lws|ionos|hostinger|online\.net|planethoster|ikoula|bookmyname/i.test(hebergeurRaw)
+        ? "France / Union europÃ©enne"
+        : /vercel|netlify|aws|amazon|google|heroku|digitalocean|cloudflare|github|firebase|render\.com|flyio|railway/i.test(hebergeurRaw)
+        ? "Ã‰tats-Unis"
+        : "Ã€ prÃ©ciser â€” contacter l'hÃ©bergeur pour confirmation";
+    subProcessors.push({ name: hebergeurName, country: hebergeurCountry, purpose: "HÃ©bergement du site web et stockage des donnÃ©es" });
+  }
+
   const allTools = [
-    a.outils_emailing || "",
-    a.outils_paiement_analytics || "",
-    a.outils_metier || ""
+    // Champ unifiÃ© du searchable tool-picker (nouveau)
+    Array.isArray(a.outils_sous_traitants) ? a.outils_sous_traitants.join(" ") : (a.outils_sous_traitants || ""),
+    // CompatibilitÃ© rÃ©troactive avec les anciens champs sÃ©parÃ©s
+    Array.isArray(a.outils_emailing) ? a.outils_emailing.join(" ") : (a.outils_emailing || ""),
+    Array.isArray(a.outils_paiement_analytics) ? a.outils_paiement_analytics.join(" ") : (a.outils_paiement_analytics || ""),
+    Array.isArray(a.outils_rdv_crm) ? a.outils_rdv_crm.join(" ") : (a.outils_rdv_crm || ""),
+    // Champ texte libre pour outils non listÃ©s
+    a.outils_metier || "",
   ].join(" ");
 
   if (allTools.includes("Mailchimp")) subProcessors.push({ name: "Mailchimp", country: "Ã‰tats-Unis", purpose: "Envoi d'emails et gestion des listes de contacts" });
   if (allTools.includes("Brevo") || allTools.includes("Sendinblue")) subProcessors.push({ name: "Brevo (ex-Sendinblue)", country: "France (UE)", purpose: "Envoi d'emails et automatisation marketing" });
   if (allTools.includes("Klaviyo")) subProcessors.push({ name: "Klaviyo", country: "Ã‰tats-Unis", purpose: "Emailing et automatisation e-commerce" });
+  if (allTools.includes("ActiveCampaign")) subProcessors.push({ name: "ActiveCampaign", country: "Ã‰tats-Unis", purpose: "Emailing et automatisation marketing" });
+  if (allTools.includes("Mailjet")) subProcessors.push({ name: "Mailjet (Sinch)", country: "France / SuÃ¨de (UE)", purpose: "Envoi d'emails transactionnels et marketing" });
+  if (allTools.includes("Google Workspace") || allTools.includes("Gmail pro")) subProcessors.push({ name: "Google Workspace (Gmail Pro)", country: "Ã‰tats-Unis", purpose: "Messagerie professionnelle et suite collaborative" });
+  if (allTools.includes("Zoho Mail")) subProcessors.push({ name: "Zoho Mail", country: "Inde / Ã‰tats-Unis", purpose: "Messagerie professionnelle" });
   if (allTools.includes("HubSpot")) subProcessors.push({ name: "HubSpot", country: "Ã‰tats-Unis", purpose: "CRM et marketing automation" });
   if (allTools.includes("Stripe")) subProcessors.push({ name: "Stripe", country: "Ã‰tats-Unis", purpose: "Traitement des paiements en ligne" });
   if (allTools.includes("PayPal")) subProcessors.push({ name: "PayPal", country: "Ã‰tats-Unis", purpose: "Traitement des paiements en ligne" });
+  if (allTools.includes("SumUp")) subProcessors.push({ name: "SumUp", country: "Irlande (UE)", purpose: "Traitement des paiements par carte (terminal et en ligne)" });
+  if (allTools.includes("Square")) subProcessors.push({ name: "Square", country: "Ã‰tats-Unis", purpose: "Traitement des paiements en ligne et en magasin" });
   if (allTools.includes("Google Analytics") || allTools.includes("GA4")) subProcessors.push({ name: "Google Analytics (GA4)", country: "Ã‰tats-Unis", purpose: "Analyse de l'audience du site web" });
   if (allTools.includes("Meta Pixel") || allTools.includes("Facebook")) subProcessors.push({ name: "Meta Platforms (Facebook/Instagram)", country: "Ã‰tats-Unis", purpose: "PublicitÃ© ciblÃ©e et analyse de conversions" });
   if (allTools.includes("Google Ads") || allTools.includes("Tag Manager")) subProcessors.push({ name: "Google Ads / Tag Manager", country: "Ã‰tats-Unis", purpose: "PublicitÃ© en ligne et gestion des balises" });
@@ -305,17 +338,23 @@ function analyzeProfile(a) {
   if (allTools.includes("Calendly")) subProcessors.push({ name: "Calendly", country: "Ã‰tats-Unis", purpose: "Prise de rendez-vous en ligne" });
   if (allTools.includes("Zoom")) subProcessors.push({ name: "Zoom", country: "Ã‰tats-Unis", purpose: "VisioconfÃ©rence et rÃ©unions en ligne" });
   if (allTools.includes("Matomo")) subProcessors.push({ name: "Matomo", country: "France / UE (si auto-hÃ©bergÃ©)", purpose: "Analyse d'audience respectueuse de la vie privÃ©e" });
+  if (allTools.includes("Hotjar") || allTools.includes("Clarity")) subProcessors.push({ name: "Hotjar / Microsoft Clarity", country: "Ã‰tats-Unis", purpose: "Analyse du comportement visiteurs (heatmaps, enregistrements de session)" });
 
-  // Add hosting
-  const hebergeur = a.hebergeur || "";
-  if (hebergeur && !hebergeur.includes("sais pas") && hebergeur.trim().length > 0) {
-    const isUS = hebergeur.match(/vercel|netlify|aws|amazon|cloudflare|heroku|digitalocean/i);
-    subProcessors.push({
-      name: hebergeur.split(",")[0].trim(),
-      country: isUS ? "Ã‰tats-Unis" : "Variable selon la configuration",
-      purpose: "HÃ©bergement du site web"
-    });
-  }
+  // Outils RDV / planning
+  if (allTools.includes("Doctolib")) subProcessors.push({ name: "Doctolib", country: "France (UE)", purpose: "Prise de rendez-vous mÃ©dicaux et accÃ¨s au dossier patient" });
+  if (allTools.includes("Clicrdv") || allTools.includes("Veary")) subProcessors.push({ name: "Clicrdv / Veary", country: "France (UE)", purpose: "Prise de rendez-vous en ligne" });
+
+  // CRM dÃ©diÃ©s
+  if (allTools.includes("Salesforce")) subProcessors.push({ name: "Salesforce, Inc.", country: "Ã‰tats-Unis", purpose: "Gestion de la relation client (CRM)" });
+  if (allTools.includes("Pipedrive")) subProcessors.push({ name: "Pipedrive", country: "Ã‰tats-Unis / Estonie (UE)", purpose: "Gestion de la relation client (CRM)" });
+  if (allTools.includes("Monday")) subProcessors.push({ name: "Monday.com", country: "Ã‰tats-Unis", purpose: "Gestion de projets et de la relation client" });
+  if (allTools.includes("Airtable")) subProcessors.push({ name: "Airtable", country: "Ã‰tats-Unis", purpose: "Base de donnÃ©es et gestion des contacts" });
+  if (allTools.includes("Notion")) subProcessors.push({ name: "Notion Labs, Inc.", country: "Ã‰tats-Unis", purpose: "Base de donnÃ©es clients et gestion de contenu" });
+  if (allTools.includes("Zoho CRM") || (allTools.includes("Zoho") && !allTools.includes("Zoho Mail"))) subProcessors.push({ name: "Zoho CRM", country: "Inde / Ã‰tats-Unis", purpose: "Gestion de la relation client (CRM)" });
+
+  // VisioconfÃ©rence
+  if (allTools.includes("Microsoft Teams")) subProcessors.push({ name: "Microsoft Teams", country: "Ã‰tats-Unis", purpose: "VisioconfÃ©rence et messagerie professionnelle" });
+  if (allTools.includes("Google Meet")) subProcessors.push({ name: "Google Meet", country: "Ã‰tats-Unis", purpose: "VisioconfÃ©rence" });
 
   return {
     hasSensitiveData, hasEmployees, isHealthSector, isRecruitment,
@@ -346,7 +385,8 @@ function buildPrompt(a) {
     "PROCÃ‰DURE DE GESTION DES VIOLATIONS DE DONNÃ‰ES (Art. 33-34 RGPD)",
     "GUIDE D'INTÃ‰GRATION",
     ...(p.isEquipe || p.hasEmployees ? ["PROCÃ‰DURE DE GESTION DES DROITS DES PERSONNES"] : []),
-    ...((p.isEquipe || p.hasEmployees) && p.subProcessors.length > 0 ? ["CLAUSES DE SOUS-TRAITANCE (DPA)"] : []),
+    // Art. 28 RGPD : un DPA est obligatoire dÃ¨s qu'il existe un sous-traitant, quelle que soit la taille de la structure
+    ...(p.subProcessors.length > 0 ? ["CLAUSES DE SOUS-TRAITANCE (DPA)"] : []),
     ...(p.hasEmployees ? ["NOTICE D'INFORMATION POUR LES COLLABORATEURS"] : []),
     ...(p.hasSensitiveData && p.isHealthSector ? ["POLITIQUE SPÃ‰CIFIQUE AUX DONNÃ‰ES DE SANTÃ‰"] : []),
     ...(p.hasHR ? ["POLITIQUE DE GESTION DES DONNÃ‰ES RH"] : []),
@@ -506,7 +546,7 @@ INSTRUCTIONS DE RÃ‰DACTION â€” IMPÃ‰RATIVES
 
 8. DPO ET ANALYSE D'IMPACT (AIPD) : Si l'entreprise traite des donnÃ©es de santÃ© Ã  grande Ã©chelle, rÃ©alise un suivi systÃ©matique Ã  grande Ã©chelle des personnes, ou traite des catÃ©gories particuliÃ¨res de donnÃ©es (art. 9) Ã  grande Ã©chelle, signale dans le registre des traitements l'obligation potentielle de dÃ©signer un DÃ©lÃ©guÃ© Ã  la Protection des DonnÃ©es (art. 37 RGPD) et de rÃ©aliser une Analyse d'Impact relative Ã  la Protection des DonnÃ©es â€” AIPD (art. 35 RGPD) â€” avec une recommandation claire d'Ã©valuer cette obligation au cas par cas plutÃ´t qu'une affirmation catÃ©gorique.
 
-9. SOUS-TRAITANTS : Mentionner CHAQUE sous-traitant identifiÃ© avec pays d'hÃ©bergement et base lÃ©gale du transfert. Pour les USA : mentionner le Data Privacy Framework (dÃ©cision d'adÃ©quation du 10 juillet 2023).
+9. SOUS-TRAITANTS â€” LISTE STRICTEMENT LIMITATIVE : Mentionne UNIQUEMENT ET EXCLUSIVEMENT les sous-traitants explicitement listÃ©s dans la section "SOUS-TRAITANTS IDENTIFIÃ‰S" du profil client ci-dessus. N'ajoute AUCUN sous-traitant supplÃ©mentaire par dÃ©duction sectorielle, par habitude ou par hypothÃ¨se sur les outils typiquement utilisÃ©s dans ce secteur â€” mÃªme si tu penses qu'ils sont probablement utilisÃ©s. Si un outil n'est pas prÃ©sent dans "SOUS-TRAITANTS IDENTIFIÃ‰S", il ne doit JAMAIS apparaÃ®tre dans les documents (ni dans le registre, ni dans la politique de confidentialitÃ©, ni nulle part). Pour chaque sous-traitant listÃ© : indiquer pays d'hÃ©bergement + base lÃ©gale du transfert. Pour les USA : Data Privacy Framework (dÃ©cision d'adÃ©quation du 10 juillet 2023).
 
 10. PROCÃ‰DURE DE GESTION DES VIOLATIONS DE DONNÃ‰ES (Art. 33-34 RGPD) : RÃ©dige une procÃ©dure opÃ©rationnelle concrÃ¨te, utilisable immÃ©diatement par le client, couvrant : la dÃ©tection et la qualification d'un incident comme violation de donnÃ©es, le dÃ©lai impÃ©ratif de notification Ã  la CNIL de 72 heures maximum aprÃ¨s en avoir pris connaissance (sauf si la violation n'est pas susceptible d'engendrer un risque pour les personnes), le contenu minimal de la notification (nature de la violation, catÃ©gories et nombre approximatif de personnes/donnÃ©es concernÃ©es, consÃ©quences probables, mesures prises ou envisagÃ©es), les cas oÃ¹ les personnes concernÃ©es doivent elles-mÃªmes Ãªtre informÃ©es directement (risque Ã©levÃ© pour leurs droits et libertÃ©s), et la tenue d'un registre interne des violations mÃªme pour celles non notifiÃ©es Ã  la CNIL. RÃ©fÃ©rence le champ "Violation de donnÃ©es antÃ©rieure" du profil client s'il indique un antÃ©cÃ©dent.
 
@@ -522,7 +562,7 @@ INSTRUCTIONS DE RÃ‰DACTION â€” IMPÃ‰RATIVES
 
 16. FORMAT STRICT â€” TRÃˆS IMPORTANT : Ne gÃ©nÃ¨re AUCUN texte avant le premier titre. N'ajoute AUCUNE section d'introduction, de prÃ©sentation gÃ©nÃ©rale, de prÃ©ambule ou de note prÃ©liminaire qui ne figure pas dans la liste "DOCUMENTS Ã€ GÃ‰NÃ‰RER" ci-dessus. RÃ©utilise le titre EXACT de chaque document tel qu'indiquÃ© dans cette liste (mÃªme texte aprÃ¨s le numÃ©ro), sans le reformuler. Le tout premier caractÃ¨re de ta rÃ©ponse doit Ãªtre "## 1.".
 
-17. SOBRIÃ‰TÃ‰ : Reste concis et opÃ©rationnel sur chaque document (pas de rÃ©pÃ©titions entre documents, pas de tableaux Ã  rallonge). L'objectif est que les ${documentsToGenerate.length} documents complets tiennent dans la rÃ©ponse â€” mieux vaut un document lÃ©gÃ¨rement plus court mais terminÃ© qu'un document long mais coupÃ©.
+17. SOBRIÃ‰TÃ‰ ET COMPLÃ‰TUDE â€” CRITIQUE : Reste concis et opÃ©rationnel sur chaque document (pas de rÃ©pÃ©titions entre documents, pas de tableaux Ã  rallonge). L'objectif ABSOLU est que les ${documentsToGenerate.length} documents complets tiennent dans la rÃ©ponse â€” mieux vaut un document lÃ©gÃ¨rement plus court mais terminÃ© qu'un document long mais coupÃ© en cours de rÃ©daction. BANNIÃˆRE DE CONSENTEMENT AUX COOKIES : cette section doit Ãªtre particuliÃ¨rement concise â€” texte de premier niveau (5 lignes max) + liste simple et courte des catÃ©gories pour le panneau de personnalisation (un bullet par catÃ©gorie, sans paragraphes descriptifs). GUIDE D'INTÃ‰GRATION : 1 Ã  2 Ã©tapes claires par technologie, pas de tutoriel exhaustif.
 
 GÃ©nÃ¨re maintenant chaque document demandÃ©, dans l'ordre, en commenÃ§ant chacun par son titre exact (## 1. REGISTRE DES TRAITEMENTS, etc.). N'Ã©cris rien d'autre avant le "## 1.".`;
 }
@@ -575,7 +615,12 @@ function buildEmail(a, docs) {
 
   const docList = sections.map((s) => `<li>${iconFor(s.title)} ${s.title}</li>`).join("");
 
-  return `<!DOCTYPE html>
+  // Encode ALL non-ASCII characters (accents, emojis) as HTML numeric entities.
+  // This makes the email body pure ASCII, which renders correctly regardless
+  // of how the receiving email client interprets the MIME charset header.
+  // Without this, email clients that misread UTF-8 as Windows-1252 show
+  // garbled characters (Ã© â†’ ÃƒÂ©, âš¡ â†’ Ã¢Å¡Â¡, âœ… â†’ Ã¢Å“â€¦, etc.).
+  const html = `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b">
@@ -621,6 +666,11 @@ function buildEmail(a, docs) {
 </div>
 </body>
 </html>`;
+  // Convert every non-ASCII character (U+0080 and above) to its HTML numeric entity.
+  // The `u` flag makes the regex operate on Unicode code points, so multi-code-unit
+  // emoji (e.g. ðŸ“ž U+1F4DE, stored as a surrogate pair in JS) are matched and
+  // encoded in a single pass â€” codePointAt(0) returns the correct full code point.
+  return html.replace(/[^\x00-\x7F]/gu, c => `&#${c.codePointAt(0)};`);
 }
 
 function parseSections(text) {
