@@ -477,6 +477,8 @@ IDENTIFICATION :
 â€¢ Site web : ${a.site_web || "Pas de site web"}
 â€¢ CMS / Technologie : ${a.cms || "Non prÃ©cisÃ©"}
 â€¢ HÃ©bergeur : ${a.hebergeur || "Non prÃ©cisÃ©"}
+â€¢ Outils numÃ©riques sous-traitants (sÃ©lectionnÃ©s dans le questionnaire) : ${Array.isArray(a.outils_sous_traitants) ? a.outils_sous_traitants.join(", ") : (a.outils_sous_traitants || "Aucun sÃ©lectionnÃ©")}
+â€¢ Autres outils / logiciels mÃ©tier non listÃ©s (texte libre) : ${a.outils_metier || "Aucun autre outil prÃ©cisÃ©"}
 
 DONNÃ‰ES PERSONNELLES TRAITÃ‰ES :
 â€¢ Types de donnÃ©es collectÃ©es : ${Array.isArray(a.types_donnees) ? a.types_donnees.join(", ") : (a.types_donnees || "Non prÃ©cisÃ©")}
