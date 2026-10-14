@@ -217,6 +217,69 @@ function ToolPicker({ value, onChange }) {
   );
 }
 
+// ─── SAISIE D'ADRESSE AVEC SUGGESTIONS (Base Adresse Nationale — service public IGN) ───
+// Les suggestions viennent de l'API de géocodage de la Géoplateforme (data.geopf.fr), gratuite et sans clé.
+// Si le service ne répond pas, le champ reste une saisie libre classique.
+function AddressInput({ value, onChange, onEnter, placeholder }) {
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const timer = useRef(null);
+  const lastQuery = useRef("");
+
+  const search = (text) => {
+    clearTimeout(timer.current);
+    const q = text.trim();
+    if (q.length < 4) { setItems([]); setOpen(false); return; }
+    timer.current = setTimeout(async () => {
+      lastQuery.current = q;
+      try {
+        const r = await fetch(`https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(q)}&autocomplete=1&limit=5&index=address`);
+        if (!r.ok) return;
+        const j = await r.json();
+        if (lastQuery.current !== q) return; // réponse obsolète
+        const list = (j.features || []).filter((f) => f.properties && f.properties.label && (f.properties.score || 0) >= 0.45).map((f) => f.properties.label);
+        setItems(list); setActive(-1); setOpen(list.length > 0);
+      } catch { /* service indisponible : saisie libre */ }
+    }, 250);
+  };
+
+  const choose = (label) => { onChange(label); setItems([]); setOpen(false); setActive(-1); };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input autoFocus className="qi" type="text" value={value} placeholder={placeholder} autoComplete="off"
+        role="combobox" aria-expanded={open} aria-autocomplete="list" aria-controls="adresse-suggestions"
+        aria-activedescendant={active >= 0 ? `adresse-sugg-${active}` : undefined}
+        onChange={(e) => { onChange(e.target.value); search(e.target.value); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onFocus={() => { if (items.length) setOpen(true); }}
+        onKeyDown={(e) => {
+          if (open && items.length) {
+            if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => (a + 1) % items.length); return; }
+            if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => (a <= 0 ? items.length - 1 : a - 1)); return; }
+            if (e.key === "Escape") { setOpen(false); return; }
+            if (e.key === "Enter" && active >= 0) { e.preventDefault(); choose(items[active]); return; }
+          }
+          if (e.key === "Enter") onEnter();
+        }} />
+      {open && (
+        <ul id="adresse-suggestions" role="listbox" style={{ listStyle: "none", position: "absolute", left: 0, right: 0, top: "calc(100% + 6px)", zIndex: 20, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 12, boxShadow: "0 10px 30px rgba(15,23,42,0.12)", overflow: "hidden" }}>
+          {items.map((label, i) => (
+            <li key={label} id={`adresse-sugg-${i}`} role="option" aria-selected={i === active}
+              onMouseDown={(e) => { e.preventDefault(); choose(label); }}
+              onMouseEnter={() => setActive(i)}
+              style={{ padding: "12px 16px", fontSize: 14, color: "#0f172a", cursor: "pointer", background: i === active ? "#eff6ff" : "#fff", borderTop: i ? "1px solid #f1f5f9" : "none", display: "flex", gap: 10, alignItems: "center" }}>
+              <span aria-hidden="true">📍</span>{label}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>Commencez à taper puis choisissez votre adresse dans la liste. Vous pouvez aussi la saisir librement.</p>
+    </div>
+  );
+}
+
 // ─── QUESTIONS QUESTIONNAIRE CLIENT ───────────────────────────────────────
 // Une trentaine de questions en 6 blocs — détermine l'offre, les documents et leur contenu
 // Types : email | text | textarea | select | checkbox | radio | tool-picker
@@ -259,9 +322,9 @@ const CLIENT_QUESTIONS = [
   { id:"conformite_existante", bloc:5, blocTitle:"Sécurité & Organisation", icon:"✅", q:"Quels éléments de conformité RGPD avez-vous déjà en place ?", sub:"Sélectionnez ce qui existe, même si c'est incomplet ou obsolète.", type:"checkbox", options:["Une politique de confidentialité (même ancienne ou générique)","Une bannière de consentement cookies","Un registre des traitements","Des mentions légales sur le site","Des contrats de sous-traitance (DPA) avec vos prestataires","Un DPO (Délégué à la Protection des Données) nommé","Une procédure de réponse aux demandes de droits","Aucun élément de conformité en place"] },
 
   // ══ BLOC 6 : INFORMATIONS LÉGALES (4 q.) ══════════════════════════════════
-  { id:"adresse_siege", bloc:6, blocTitle:"Informations légales", icon:"📍", q:"Quelle est l'adresse complète de votre siège social ou lieu d'exercice ?", sub:"Obligatoire dans les mentions légales. Adresse, code postal, ville.", type:"text", placeholder:"Ex : 13 avenue des Mélèzes, 25200 Grand-Charmont" },
+  { id:"adresse_siege", bloc:6, blocTitle:"Informations légales", icon:"📍", q:"Quelle est l'adresse complète de votre siège social ou lieu d'exercice ?", sub:"Obligatoire dans les mentions légales. Adresse, code postal, ville.", type:"address", placeholder:"Ex : 12 rue de la République, 69002 Lyon" },
   { id:"capital_tva", bloc:6, blocTitle:"Informations légales", icon:"💼", q:"Quel est votre capital social et/ou votre numéro de TVA intracommunautaire ?", sub:"Pour les sociétés. Si auto-entrepreneur ou sans TVA, indiquez « Non applicable ».", type:"text", placeholder:"Ex : Capital : 1 000 € — TVA : FR12 123456789 — ou Non applicable" },
-  { id:"responsable_publication", bloc:6, blocTitle:"Informations légales", icon:"🧑‍💼", q:"Qui est le responsable de publication du site ?", sub:"Nom et qualité de la personne responsable du contenu du site. Obligatoire dans les mentions légales.", type:"text", placeholder:"Ex : Louca Foughali, Gérant — ou Moi-même (si indépendant)" },
+  { id:"responsable_publication", bloc:6, blocTitle:"Informations légales", icon:"🧑‍💼", q:"Qui est le responsable de publication du site ?", sub:"Nom et qualité de la personne responsable du contenu du site. Obligatoire dans les mentions légales.", type:"text", placeholder:"Ex : Marie Dupont, gérante — ou Moi-même (si indépendant)" },
   { id:"referent_rgpd", bloc:6, blocTitle:"Informations légales", icon:"🔑", q:"Qui sera le référent RGPD de votre structure ?", sub:"Personne chargée de gérer les demandes de droits et de veiller à la conformité au quotidien.", type:"text", placeholder:"Ex : Moi-même (gérant) — ou Prénom Nom, Responsable administratif" },
 ];
 
@@ -486,7 +549,7 @@ export default function App() {
 
       <LH>3. Destinataires et prestataires</LH>
       <LP>Vos données sont destinées à RGPD Express. Elles ne sont jamais vendues ni louées. Elles sont traitées, pour notre compte, par les prestataires suivants :</LP>
-      <LP>• <strong>Vercel Inc.</strong> (États-Unis) — hébergement du site et du serveur<br/>• <strong>Stripe Payments Europe, Limited</strong> (Irlande) — paiement et gestion de l'abonnement ; Stripe agit également en tant que responsable de traitement pour ses propres obligations (lutte contre la fraude, obligations financières)<br/>• <strong>Anthropic PBC</strong> (États-Unis) — service d'intelligence artificielle utilisé pour générer les documents<br/>• <strong>Resend, Inc.</strong> (États-Unis) — envoi des emails contenant votre dossier<br/>• <strong>Notion Labs, Inc.</strong> (États-Unis) — archivage des dossiers et suivi de la relation client<br/>• <strong>OVHcloud</strong> (France) — messagerie électronique contact@rgpd.express<br/>• <strong>Bunny.net d.o.o.</strong> (Slovénie) — fourniture des polices d'écriture du site ; comme pour toute ressource chargée sur internet, votre adresse IP lui est techniquement transmise</LP>
+      <LP>• <strong>Vercel Inc.</strong> (États-Unis) — hébergement du site et du serveur<br/>• <strong>Stripe Payments Europe, Limited</strong> (Irlande) — paiement et gestion de l'abonnement ; Stripe agit également en tant que responsable de traitement pour ses propres obligations (lutte contre la fraude, obligations financières)<br/>• <strong>Anthropic PBC</strong> (États-Unis) — service d'intelligence artificielle utilisé pour générer les documents<br/>• <strong>Resend, Inc.</strong> (États-Unis) — envoi des emails contenant votre dossier<br/>• <strong>Notion Labs, Inc.</strong> (États-Unis) — archivage des dossiers et suivi de la relation client<br/>• <strong>OVHcloud</strong> (France) — messagerie électronique contact@rgpd.express<br/>• <strong>IGN — Géoplateforme</strong> (France, service public) — suggestions d'adresses pendant la saisie de l'adresse de votre entreprise dans le questionnaire ; seul le texte saisi dans ce champ est transmis<br/>• <strong>Bunny.net d.o.o.</strong> (Slovénie) — fourniture des polices d'écriture du site ; comme pour toute ressource chargée sur internet, votre adresse IP lui est techniquement transmise</LP>
 
       <LH>4. Transferts hors de l'Union européenne</LH>
       <LP>Certains prestataires sont établis aux États-Unis. Ces transferts sont encadrés, selon le prestataire, par la décision d'adéquation de la Commission européenne du 10 juillet 2023 (EU-US Data Privacy Framework) pour les entreprises certifiées, ou par les clauses contractuelles types adoptées par la Commission européenne, intégrées aux contrats de ces prestataires. Vous pouvez obtenir une copie de ces garanties en écrivant à <a href={`mailto:${EMAIL}`}>{EMAIL}</a>.</LP>
@@ -993,6 +1056,11 @@ export default function App() {
             )}
 
             {/* ── TEXT / EMAIL ── */}
+            {q.type === "address" && (
+              <AddressInput key={q.id} value={currentVal} placeholder={q.placeholder}
+                onChange={(v) => setClientAns({ ...clientAns, [q.id]: v })}
+                onEnter={() => { if (canNext) nextQ(); }} />
+            )}
             {(q.type === "text" || q.type === "email") && (
               <input autoFocus className="qi" type={q.type} value={currentVal} placeholder={q.placeholder}
                 onChange={e => setClientAns({ ...clientAns, [q.id]: e.target.value })}
