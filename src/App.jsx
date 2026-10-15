@@ -34,14 +34,15 @@ const PHONE = "07 69 46 93 76";
 const FH = "'Source Serif 4', Georgia, serif";
 const FB = "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 
-// ─── À COMPLÉTER avant la mise en ligne ───
-// Médiateur de la consommation : renseigner après adhésion (nom, adresse postale, site).
-// En attente de la validation de l'adhésion CM2C. Une fois validée, remplacer la ligne ci-dessous par :
-// const MEDIATEUR = { nom: "CM2C — Centre de la Médiation de la Consommation de Conciliateurs de Justice", adresse: "49 rue de Ponthieu, 75008 Paris", site: "https://www.cm2c.net" };
-const MEDIATEUR = { nom: "", adresse: "", site: "" };
+// Médiateur de la consommation : adhésion CM2C valide jusqu'au 15/10/2029 (à renouveler avant cette date).
+// Coordonnées reprises de la mention officielle fournie dans l'espace professionnel CM2C.
+const MEDIATEUR = { nom: "CM2C", adresse: "49 rue de Ponthieu, 75008 Paris", tel: "01 89 47 00 14", email: "litiges@cm2c.net", site: "https://www.cm2c.net/declarer-un-litige.php" };
 // Lien du portail client Stripe (Paramètres > Facturation > Portail client). Vide = résiliation par email.
 const PORTAIL_CLIENT = "https://billing.stripe.com/p/login/eVq5kEbPMg3x38k8Y5fUQ00";
 const MAJ_LEGAL = "octobre 2026";
+function MediateurBloc() {
+  return (<><strong>{MEDIATEUR.nom}</strong><br/>{MEDIATEUR.adresse}<br/>Tél. : <a href={`tel:+33${MEDIATEUR.tel.replace(/\s/g, "").slice(1)}`}>{MEDIATEUR.tel}</a><br/>Site : <a href={MEDIATEUR.site} target="_blank" rel="noopener noreferrer">{MEDIATEUR.site.replace("https://", "")}</a><br/>E-mail : <a href={`mailto:${MEDIATEUR.email}`}>{MEDIATEUR.email}</a></>);
+}
 // Liens de paiement Stripe. Sur la version de test Vercel, définir VITE_STRIPE_LINK_SOLO et
 // VITE_STRIPE_LINK_EQUIPE (environnement « Preview ») avec les liens Stripe en mode test.
 const ENV = import.meta.env || {};
@@ -524,6 +525,9 @@ export default function App() {
       <LP>Le site peut contenir des liens vers d'autres sites, notamment celui de la CNIL. RGPD Express n'est pas responsable du contenu de ces sites externes.</LP>
       <LH>Données personnelles</LH>
       <LP>Le traitement de vos données personnelles est décrit dans notre <a href="/confidentialite" onClick={(e) => { e.preventDefault(); goLegal("confidentialite"); }}>politique de confidentialité</a>.</LP>
+      <LH>Médiation de la consommation</LH>
+      <LP>Conformément aux dispositions du Code de la consommation concernant « le processus de médiation des litiges de la consommation », après nous avoir sollicités et à défaut de réponse satisfaisante, vous avez la possibilité de recourir gratuitement à une procédure de médiation de la consommation auprès de :</LP>
+      <LP><MediateurBloc /></LP>
       <LH>Droit applicable</LH>
       <LP>Les présentes mentions légales sont régies par le droit français.</LP>
       <LP style={{ marginTop: 28, color: "#64748b", fontSize: 12, fontStyle: "italic" }}>Dernière mise à jour : {MAJ_LEGAL}</LP>
@@ -625,8 +629,8 @@ export default function App() {
       <LP>Les données du client sont traitées conformément à la <a href="/confidentialite" onClick={(e) => { e.preventDefault(); goLegal("confidentialite"); }}>politique de confidentialité</a> du site (www.rgpd.express/confidentialite).</LP>
 
       <LH>Article 14 — Réclamations et médiation</LH>
-      <LP>Toute réclamation peut être adressée à <a href={`mailto:${EMAIL}`}>{EMAIL}</a>. Si aucune solution amiable n'est trouvée, le client consommateur peut recourir gratuitement au médiateur de la consommation suivant (articles L.611-1 et suivants du Code de la consommation) :</LP>
-      <LP>{MEDIATEUR.nom ? (<><strong>{MEDIATEUR.nom}</strong><br/>{MEDIATEUR.adresse}<br/><a href={MEDIATEUR.site} target="_blank" rel="noopener noreferrer">{MEDIATEUR.site}</a></>) : "Coordonnées du médiateur : en cours de désignation."}</LP>
+      <LP>Toute réclamation peut être adressée à <a href={`mailto:${EMAIL}`}>{EMAIL}</a>. Conformément aux dispositions du Code de la consommation concernant « le processus de médiation des litiges de la consommation » (articles L.611-1 et suivants), après avoir sollicité RGPD Express et à défaut de réponse satisfaisante, le client consommateur a la possibilité de recourir gratuitement à une procédure de médiation de la consommation auprès de :</LP>
+      <LP><MediateurBloc /></LP>
 
       <LH>Article 15 — Droit applicable et litiges</LH>
       <LP>Les présentes CGV sont soumises au droit français. Le client consommateur peut saisir, à son choix, la juridiction du lieu où il demeurait lors de la conclusion du contrat ou de la survenance du fait dommageable, ou toute autre juridiction compétente selon la loi. Entre professionnels, les litiges relèvent des juridictions du ressort de l'adresse de RGPD Express.</LP>
